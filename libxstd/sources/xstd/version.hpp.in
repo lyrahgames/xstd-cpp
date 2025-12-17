@@ -1,0 +1,72 @@
+// Copyright © 2024 Markus Pawellek
+//
+// This file is part of `xstd`.
+//
+// `xstd` is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License,
+// or (at your option) any later version.
+//
+// `xstd` is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
+//
+#pragma once
+
+// The numeric version format is AAAAABBBBBCCCCCDDDE where:
+//
+// AAAAA - major version number
+// BBBBB - minor version number
+// CCCCC - bugfix version number
+// DDD   - alpha / beta (DDD + 500) version number
+// E     - final (0) / snapshot (1)
+//
+// When DDDE is not 0, 1 is subtracted from AAAAABBBBBCCCCC. For example:
+//
+// Version      AAAAABBBBBCCCCCDDDE
+//
+// 0.1.0        0000000001000000000
+// 0.1.2        0000000001000020000
+// 1.2.3        0000100002000030000
+// 2.2.0-a.1    0000200001999990010
+// 3.0.0-b.2    0000299999999995020
+// 2.2.0-a.1.z  0000200001999990011
+//
+#define XSTD_VERSION      $libxstd.version.project_number$ULL
+#define XSTD_VERSION_STR  "$libxstd.version.project$"
+#define XSTD_VERSION_ID   "$libxstd.version.project_id$"
+#define XSTD_VERSION_FULL "$libxstd.version$"
+
+#define XSTD_VERSION_MAJOR $libxstd.version.major$
+#define XSTD_VERSION_MINOR $libxstd.version.minor$
+#define XSTD_VERSION_PATCH $libxstd.version.patch$
+
+#define XSTD_PRE_RELEASE $libxstd.version.pre_release$
+
+#define XSTD_SNAPSHOT_SN $libxstd.version.snapshot_sn$ULL
+#define XSTD_SNAPSHOT_ID "$libxstd.version.snapshot_id$"
+
+// For convenience, the above macros can be accessed in a type-safe way
+// by the following inlined constexpr variables in the 'version' namespace.
+//
+namespace xstd::version {
+
+inline constexpr auto number = XSTD_VERSION;
+inline constexpr auto string = XSTD_VERSION_STR;
+inline constexpr auto id     = XSTD_VERSION_ID;
+inline constexpr auto full   = XSTD_VERSION_FULL;
+
+inline constexpr auto major = XSTD_VERSION_MAJOR;
+inline constexpr auto minor = XSTD_VERSION_MINOR;
+inline constexpr auto patch = XSTD_VERSION_PATCH;
+
+inline constexpr auto pre_release = XSTD_PRE_RELEASE;
+
+inline constexpr auto snapshot_sn = XSTD_SNAPSHOT_SN;
+inline constexpr auto snapshot_id = XSTD_SNAPSHOT_ID;
+
+}  // namespace xstd::version

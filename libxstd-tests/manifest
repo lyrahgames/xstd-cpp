@@ -1,0 +1,23 @@
+: 1
+name: libxstd-tests
+version: 0.1.0-a.0.z
+type: exe
+language: c++
+project: xstd-cpp
+summary: C++ utility library to extend the standard library, tests
+license: GPL-3.0-or-later ; GNU General Public License v3.0 or later.
+
+# topics: first topic, second topic
+# keywords: first second third
+
+description-file: README.md
+changes-file: CHANGELOG.md
+url: https://github.com/lyrahgames/xstd-cpp
+email: lyrahgames@mailbox.org
+
+depends: * build2 >= 0.17.0
+depends: * bpkg >= 0.17.0
+
+# depends: libxstd == $
+
+depends: doctest ^2.4.11

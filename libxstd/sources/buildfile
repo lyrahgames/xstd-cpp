@@ -1,0 +1,31 @@
+# Library Sources
+#
+lib{xstd}: xstd/{hxx ixx txx}{** -version} xstd/hxx{version}
+
+# Version Header
+#
+xstd/hxx{version}: xstd/in{version} $src_root/manifest
+
+# Include Paths
+#
+out_pfx = [dir_path] $out_root/sources/
+src_pfx = [dir_path] $src_root/sources/
+cxx.poptions =+ "-I$out_pfx" "-I$src_pfx"
+lib{xstd}: cxx.export.poptions = "-I$out_pfx" "-I$src_pfx"
+
+# Linking `pthread` Library
+#
+if ($cxx.target.system != 'win32-msvc')
+{
+  cxx.libs += -pthread
+  lib{xstd}: cxx.export.libs += -pthread
+}
+
+# Installation
+#
+lib{xstd}: cxx.pkgconfig.include = include/xstd-cpp/
+{hxx ixx txx}{*}:
+{
+  install         = include/xstd-cpp/
+  install.subdirs = true
+}

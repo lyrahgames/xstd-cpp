@@ -1,0 +1,21 @@
+: 1
+name: libxstd
+version: 0.1.0-a.0.z
+type: lib,binless
+language: c++
+project: xstd-cpp
+summary: C++ utility library to extend the standard library
+license: GPL-3.0-or-later ; GNU General Public License v3.0 or later.
+
+# topics: first topic, second topic
+# keywords: first second third
+
+description-file: README.md
+changes-file: CHANGELOG.md
+url: https://github.com/lyrahgames/xstd-cpp
+email: lyrahgames@mailbox.org
+
+depends: * build2 >= 0.17.0
+depends: * bpkg >= 0.17.0
+
+tests: libxstd-tests == $

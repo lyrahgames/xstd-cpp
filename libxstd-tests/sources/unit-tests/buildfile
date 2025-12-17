@@ -1,0 +1,13 @@
+libs =
+import libs += libxstd%lib{xstd}
+import libs += doctest%lib{doctest-main}
+
+exe{libxstd-tests}: {hxx ixx txx cxx}{**} $libs
+{
+  test = true
+}
+
+out_pfx = [dir_path] $out_root/sources/
+src_pfx = [dir_path] $src_root/sources/
+
+cxx.poptions =+ "-I$out_pfx" "-I$src_pfx"
