@@ -17,4 +17,5 @@
 //
 #pragma once
 #include <xstd/io/defaults.hpp>
+#include <xstd/io/fdm.hpp>
 #include <xstd/io/string_from_file.hpp>
