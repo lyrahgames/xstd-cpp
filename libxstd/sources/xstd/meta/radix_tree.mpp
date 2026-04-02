@@ -1,0 +1,370 @@
+// Copyright © 2026 Markus Pawellek
+//
+// This file is part of `xstd`.
+//
+// `xstd` is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License,
+// or (at your option) any later version.
+//
+// `xstd` is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
+//
+export module xstd:meta.radix_tree;
+import :meta.string;
+import :meta.string_list;
+import :meta.type_list;
+import std;
+
+namespace xstd::meta {
+
+// The forward declaration of the type predicate `is_radix_node` is
+// required to allow for a recursive formulation of template constraints.
+template <typename type>
+struct is_radix_node;
+
+/// Concept that matches any type-level instance of the `radix_node` template.
+///
+export template <typename type>
+concept radix_node_instance = is_radix_node<type>::value;
+
+/// The `radix_node` class template is the fundamental building block of the
+/// provided compile-time radix tree. Its template parameters represent a
+/// string label, a termination flag, and the node's children. This template
+/// is designed to be used at compile-time as type-level data structure.
+///
+export template <string str, bool is_leaf = false, radix_node_instance... nodes>
+struct radix_node {
+  using children = type_list<nodes...>;
+
+  static constexpr auto label = str;
+  static constexpr auto leaf  = is_leaf;
+};
+
+// Implementation of the type predicate `is_radix_node`
+// used for the `radix_node_instance` concept.
+template <typename type>
+struct is_radix_node : std::false_type {};
+template <string str, bool is_leaf, radix_node_instance... children>
+struct is_radix_node<radix_node<str, is_leaf, children...>> : std::true_type {};
+
+/// Returns the label of a given `radix_node` instance.
+/// Used to make handling of values of `radix_node` instances convenient.
+///
+export consteval auto label(radix_node_instance auto node) {
+  return decltype(node)::label;
+}
+
+/// Returns the children of a `radix_node` instance as `type_list` instance.
+/// Used to make handling of values of `radix_node` instances convenient.
+///
+export consteval auto children(radix_node_instance auto node) {
+  return typename decltype(node)::children{};
+}
+
+/// Checks whether a given `radix_node` instance is a terminal node.
+/// Used to make handling of values of `radix_node` instances convenient.
+///
+export consteval auto is_leaf(radix_node_instance auto node) {
+  return decltype(node)::leaf;
+}
+
+/// Constructs a new `radix_node` from a label and a type list of children.
+///
+template <string str, bool leaf = false, radix_node_instance... nodes>
+consteval auto radix_node_from(type_list<nodes...>) {
+  return radix_node<str, leaf, nodes...>{};
+}
+
+/// Returns a copy of the node with a modified label. The children
+/// and the leaf status remain identical to the original node.
+///
+template <string str>
+consteval auto as_node(radix_node_instance auto node) {
+  return radix_node_from<str, is_leaf(node)>(children(node));
+}
+
+/// Returns a copy of the node with a modified label and sets leaf
+/// to true. The children remain identical to the original node.
+///
+template <string str>
+consteval auto as_leaf(radix_node_instance auto node) {
+  return radix_node_from<str, true>(children(node));
+}
+
+/// Returns a copy of the node with the leaf flag set to true.
+/// The children and the label remain identical to the original node.
+///
+consteval auto as_leaf(radix_node_instance auto node) {
+  constexpr auto str = label(node);
+  return radix_node_from<str, true>(children(node));
+}
+
+/// Creates a new leaf node with a specific label and one child.
+///
+template <string str>
+consteval auto leaf(radix_node_instance auto child) {
+  return radix_node<str, true, decltype(child)>{};
+}
+
+/// Creates a new terminal leaf node with no children.
+///
+template <string str>
+consteval auto leaf() {
+  return radix_node<str, true>{};
+}
+
+/// Wraps variadic nodes into a type_list to be interpreted as children.
+///
+consteval auto as_children(radix_node_instance auto... node) {
+  return type_list<decltype(node)...>{};
+}
+
+/// Inserts a string into the given `radix_node` instance.
+///
+/// This function performs a recursive type-level transformation to insert a
+/// string while maintaining the radix tree property (merging common prefixes)
+/// and lexicographical order of children.
+///
+/// The implementation differentiates between five structural cases:
+/// 1. No Match: The string and label do not share a common prefix.
+/// 2. Full Match: The string matches the label exactly.
+/// 3. Node Match: The node's label is a prefix of the string (recurse down).
+/// 4. String Match: The string is a prefix of the node's label (split node).
+/// 5. Partial Match: String and label share a non-empty prefix (branch).
+///
+/// Furthermore, we assume that the empty string is used for the root node
+/// and that, in this case, it matches every string.
+/// In all other cases, a prefix match index of zero means no match at all.
+///
+template <string str>
+consteval auto insert(radix_node_instance auto node) {
+  constexpr auto sub   = label(node);
+  constexpr auto index = prefix_match_index(sub, str);
+
+  // Comparator to maintain lexicographical order of children nodes.
+  // It is sufficient to compare the labels' first characters.
+  constexpr auto node_order = []<radix_node_instance p, radix_node_instance q> {
+    return p::label[0] <= q::label[0];
+  };
+
+  // Case 1: No Match
+  // The given string does not belong in this branch and must not
+  // alter the given node. The node is returned unchanged.
+  if constexpr (!sub.empty() && (index == 0)) return node;
+
+  if constexpr (index == str.size()) {
+    // Case 2: Full Match
+    // The node label already matches the string and we ensure it is
+    // marked as a leaf to indicate this string exists in the tree.
+    if constexpr (index == sub.size()) return as_leaf(node);
+
+    // Case 4: String Match
+    // The inserted string is a prefix of the current node's label.
+    // We split the node: the new parent is a leaf representing the string,
+    // and the old node (with its label truncated) becomes its child.
+    if constexpr (index < sub.size())
+      return leaf<str>(  //
+          as_node<tail<index>(sub)>(node));
+  }
+
+  if constexpr (index < str.size()) {
+    // Case 5: Partial Match
+    // Both string and label share a common prefix but diverge.
+    // We create a new non-leaf node for the common prefix and split the
+    // diverging parts into two child branches, sorted lexicographically.
+    if constexpr ((index > 0) && (index < sub.size()))
+      return radix_node_from<prefix<index>(str)>(   //
+          sort(                                     //
+              as_children(                          //
+                  as_node<tail<index>(sub)>(node),  //
+                  leaf<tail<index>(str)>()),
+              node_order));
+
+    // Case 3: Node Match
+    // The current node's label is fully matched as a prefix of the string.
+    // We must forward the remaining suffix of the string to the children.
+    if constexpr (index == sub.size()) {
+      constexpr auto p = sub;
+      constexpr auto q = tail<index>(str);
+
+      // Check if any existing child can consume the beginning of the suffix.
+      constexpr bool matched = any_of(children(node), [&]<typename child> {
+        return q[0] == child::label[0];
+      });
+
+      if constexpr (matched)
+        // If a matching child exists, then by construction of the radix tree
+        // this child must be unique. We recursively insert the suffix into all
+        // children nodes using a `type_list` `transform`, knowing that all
+        // non-matching children will not be changed by this transformation.
+        return radix_node_from<p, is_leaf(node)>(
+            transform(children(node), [&]<typename child> {
+              return type_list<decltype(insert<q>(child{}))>{};
+            }));
+      else
+        // No child matches the prefix of the suffix. Create a new branch
+        // for the suffix and insert it into the sorted children list.
+        return radix_node_from<p, is_leaf(node)>(
+            insert<radix_node<q, true>>(children(node), node_order));
+    }
+  }
+}
+
+/// Overload to allow inserting multiple strings sequentially into a node.
+///
+template <string str, string... strs>
+  requires(sizeof...(strs) > 0)
+consteval auto insert(radix_node_instance auto node) {
+  return insert<strs...>(insert<str>(node));
+}
+
+/// Helper to determine if a run-time string matches a compile-time prefix.
+/// If the string successfully matches the prefix, the function returns a
+/// the remaining suffix of the string and, otherwise, returns a sentinel.
+///
+template <string prefix, std::size_t index = 0>
+constexpr auto prefix_match(std::string_view str) noexcept -> std::string_view {
+  if constexpr (index == prefix.size())
+    return str;
+  else {
+    if (!str.starts_with(prefix[index])) return {};
+    str.remove_prefix(1);
+    return prefix_match<prefix, index + 1>(str);
+  }
+}
+
+/// Recursively searches for an exact string match in the radix node.
+/// `prefix` is the accumulated string prefix from parent nodes.
+/// `str` is the run-time string being searched and `f` is an invocable that
+/// will be called with `prefix` as template argument if a match is found.
+/// The function returns a `bool` indicating whether the string was found.
+///
+template <string prefix = "">
+constexpr bool visit(radix_node_instance auto node,
+                     std::string_view str,
+                     auto&& f) {
+  constexpr auto new_prefix = prefix + label(node);
+  const auto tail           = prefix_match<label(node)>(str);
+  if (!tail.data()) return false;
+  if constexpr (is_leaf(node)) {
+    if (tail.empty()) {
+      std::forward<decltype(f)>(f).template operator()<new_prefix>();
+      return true;
+    }
+  } else {
+    if (tail.empty()) return false;
+  }
+  return for_each_until(children(node), [&]<typename child> {
+    return visit<new_prefix>(child{}, tail, f);
+  });
+}
+
+/// Recursively searches for the longest prefix inside the radix tree that
+/// matches the given runtime string. If no prefix can be matched, the
+/// algorithm returns `false` and does not invoke the given function object.
+/// For a successful prefix match, the function returns `true` and invokes
+/// the function object with `prefix` as template argument and the remaining
+/// string suffix as runtime argument.
+///
+template <string prefix = "">
+constexpr bool traverse(radix_node_instance auto node,
+                        std::string_view str,
+                        auto&& f) {
+  const auto tail = prefix_match<label(node)>(str);
+  if (!tail.data()) return false;
+
+  constexpr auto new_prefix = prefix + label(node);
+  const auto found = for_each_until(children(node), [&]<typename child> {
+    return traverse<new_prefix>(child{}, tail, f);
+  });
+  if constexpr (is_leaf(node)) {
+    if (!found)
+      std::forward<decltype(f)>(f).template operator()<new_prefix>(tail);
+    return true;
+  } else
+    return found;
+}
+
+/// This class template serves as the entry point for tree operations
+/// and wrapping the root node simply wraps a type instance of `radix_node`
+/// representing its root node.
+///
+export template <radix_node_instance node = radix_node<"">>
+struct radix_tree {
+  using root = node;
+
+  constexpr radix_tree() noexcept = default;
+  constexpr radix_tree(root) noexcept {}  // This constructor allows for CTAD.
+};
+
+// Implementation of Type Predicate `is_radix_tree`
+//
+template <typename type>
+struct is_radix_tree : std::false_type {};
+template <typename type>
+struct is_radix_tree<radix_tree<type>> : std::true_type {};
+
+/// Checks whether the given type is an instance of `radix_node`.
+///
+export template <typename type>
+concept radix_tree_instance = is_radix_tree<type>::value;
+
+/// Returns the root node instance of a radix tree.
+///
+export consteval auto root(radix_tree_instance auto tree) {
+  return typename decltype(tree)::root{};
+}
+
+/// Insert the given strings iteratively into the given `radix_tree`
+/// instance while preserving lexicographical order and string uniqueness.
+///
+export template <string... str>
+consteval auto insert(radix_tree_instance auto tree) {
+  return radix_tree{insert<str...>(root(tree))};
+}
+
+/// Factory function to create a radix tree from a variadic list of strings.
+///
+export template <string... str>
+consteval auto radix_tree_from() {
+  return insert<str...>(radix_tree<>{});
+}
+
+/// Factory function to create a radix tree from a given list of strings.
+///
+export template <string... str>
+consteval auto radix_tree_from(string_list<str...>) {
+  return radix_tree_from<str...>();
+}
+
+/// Recursively searches for an exact string match in the radix tree. `str`
+/// is the run-time string being searched and `f` is an invocable that for
+/// successful matches will be invoked with the matched prefix as template
+/// argument. The function returns a `bool` indicating a successful match.
+///
+export constexpr bool visit(radix_tree_instance auto tree,
+                            std::string_view str,
+                            auto&& f) {
+  return visit(root(tree), str, std::forward<decltype(f)>(f));
+}
+
+/// Recursively searches for the longest prefix inside the radix tree that
+/// matches the given runtime string `str`. If no prefix can be matched, the
+/// algorithm returns `false` and does not invoke the given function object.
+/// For a successful prefix match, the function returns `true` and invokes
+/// the function object with `prefix` as template argument and the remaining
+/// string suffix as runtime argument.
+///
+export constexpr bool traverse(radix_tree_instance auto tree,
+                               std::string_view str,
+                               auto&& f) {
+  return traverse(root(tree), str, std::forward<decltype(f)>(f));
+}
+
+}  // namespace xstd::meta

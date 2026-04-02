@@ -1,4 +1,4 @@
-// Copyright © 2024 Markus Pawellek
+// Copyright © 2026 Markus Pawellek
 //
 // This file is part of `xstd`.
 //
@@ -15,9 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
-#include <print>
-//
-#include <xstd/meta/type_list.hpp>
+import std;
+import xstd;
 
 // To access functions dealing with instantiations of 'type_list',
 // we use argument-dependent lookup (ADL) and simply make the template
@@ -29,11 +28,6 @@ using xstd::meta::type_list;
 // a certain type is an instance of the 'type_list' template.
 //
 using xstd::meta::type_list_instance;
-
-// To simplify the checks for type equality,
-// we make the 'equal' predicate available in the current scope.
-//
-using xstd::meta::equal;
 
 using xstd::meta::as_type;
 using xstd::meta::as_value;
@@ -454,7 +448,7 @@ static_assert(sort(type_list<short, unsigned, char, int>{},
 // Transform
 //
 static_assert(transform(type_list<float, void, int>{}, []<typename x> {
-                if constexpr (equal<x, void>)
+                if constexpr (as_value<x> == as_value<void>)
                   return type_list<type_list<>>{};
                 else
                   return type_list<x>{};

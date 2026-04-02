@@ -1,4 +1,4 @@
-// Copyright © 2024 Markus Pawellek
+// Copyright © 2026 Markus Pawellek
 //
 // This file is part of `xstd`.
 //
@@ -15,14 +15,23 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
-import xstd;
+export module xstd:async_invoke;
+import std;
 
-using xstd::meta::string_list;
-using xstd::meta::string_list_instance;
+export namespace xstd {
 
-static_assert(string_list_instance<string_list<>>);
-static_assert(string_list_instance<string_list<"help">>);
-static_assert(string_list_instance<string_list<"hello">>);
-static_assert(string_list_instance<string_list<"version">>);
+/// Calls `std::async` with `std::launch::async` as launch policy.
+///
+/// "[...] having a function that acts like `std::async`,
+/// but that automatically uses `std::launch::async` as the
+/// launch policy, is a convenient tool to have around, [...]"
+///
+/// from Effective Modern C++ by Scott Meyers
+///
+[[nodiscard]] inline auto async_invoke(auto&& f, auto&&... args) {
+  return std::async(std::launch::async,  //
+                    std::forward<decltype(f)>(f),
+                    std::forward<decltype(args)>(args)...);
+}
 
-int main() {}
+}  // namespace xstd

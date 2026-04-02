@@ -1,4 +1,4 @@
-// Copyright © 2024 Markus Pawellek
+// Copyright © 2026 Markus Pawellek
 //
 // This file is part of `xstd`.
 //
@@ -15,14 +15,23 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
-import xstd;
+export module xstd:meta;
+export import :meta.breakpoint;
 
-using xstd::meta::string_list;
-using xstd::meta::string_list_instance;
+export import :meta.string;
+export import :meta.tag;
+export import :meta.pair;
 
-static_assert(string_list_instance<string_list<>>);
-static_assert(string_list_instance<string_list<"help">>);
-static_assert(string_list_instance<string_list<"hello">>);
-static_assert(string_list_instance<string_list<"version">>);
+export import :meta.type_list;
+export import :meta.value_list;
 
-int main() {}
+export import :meta.index_list;
+export import :meta.permutation;
+export import :meta.string_list;
+export import :meta.name_list;
+
+export import :meta.list;
+
+export import :meta.map;
+
+export import :meta.radix_tree;

@@ -1,4 +1,5 @@
 cxx.std = latest
+cxx.features.modules = true
 
 using cxx
 
@@ -6,17 +7,12 @@ hxx{*}: extension = hpp
 ixx{*}: extension = ipp
 txx{*}: extension = tpp
 cxx{*}: extension = cpp
+mxx{*}: extension = mpp
 
-# Assume headers are importable unless stated otherwise.
-#
-hxx{*}: cxx.importable = true
+hxx{*}: cxx.importable = false
 
-# Every exe{} in this subproject is by default a test.
-#
 exe{*}: test = true
 
-# The test target for cross-testing (running tests under Wine, etc).
-#
 test.target = $cxx.target
 
 # Import `xstd` by default and make it available.

@@ -2,7 +2,7 @@ libs =
 import libs += libxstd%lib{xstd}
 import libs += doctest%lib{doctest-main}
 
-exe{libxstd-tests}: {hxx ixx txx cxx}{**} $libs
+exe{libxstd-tests}: cxx{lines_view string_from_file match} $libs
 {
   test = true
 }

@@ -15,14 +15,29 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
+#include <doctest/doctest.h>
+#include <version>
+import std;
 import xstd;
 
-using xstd::meta::string_list;
-using xstd::meta::string_list_instance;
+using namespace std::literals;
 
-static_assert(string_list_instance<string_list<>>);
-static_assert(string_list_instance<string_list<"help">>);
-static_assert(string_list_instance<string_list<"hello">>);
-static_assert(string_list_instance<string_list<"version">>);
+SCENARIO("xstd::views::lines") {
+  {
+    std::string str{};
+    for (auto line :
+         xstd::views::lines("Hello\nWorld\nThis is\nC++20 coroutines"))
+      str += std::format("> {};", line);
+    CHECK(str == "> Hello;> World;> This is;> C++20 coroutines;");
+  }
 
-int main() {}
+#if __cpp_lib_ranges_enumerate >= 202302L
+  {
+    std::string str{};
+    for (auto [i, line] : "Hello\nWorld\nThis is\nC++20 coroutines"sv |
+                              xstd::views::lines | std::views::enumerate)
+      str += std::format("{} {};", i, line);
+    CHECK(str == "0 Hello;1 World;2 This is;3 C++20 coroutines;");
+  }
+#endif
+}

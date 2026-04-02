@@ -15,13 +15,10 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
-#include <xstd/meta/pair.hpp>
-#include <xstd/meta/string.hpp>
-#include <xstd/meta/type_list.hpp>
-#include <xstd/meta/value_list.hpp>
+import std;
+import xstd;
 
-using namespace xstd;
-using namespace meta;
+using namespace xstd::meta;
 
 int main() {
   // Simple Tests for `pair_instance` Concept
@@ -34,7 +31,7 @@ int main() {
   //
   static_assert(pair_instance<pair<int, float>>);
   static_assert(pair_instance<pair<float, float>>);
-  static_assert(pair_instance<pair<czstring, std::string>>);
+  static_assert(pair_instance<pair<const char*, std::string>>);
   static_assert(pair_instance<pair<std::string_view, std::string>>);
   //
   static_assert(pair_instance<pair<as_type<-1>, float>>);

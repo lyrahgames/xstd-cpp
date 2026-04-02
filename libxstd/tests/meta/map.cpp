@@ -15,8 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
-#include <xstd/meta/map.hpp>
-#include <xstd/meta/name_list.hpp>
+import std;
+import xstd;
 
 using namespace xstd;
 using namespace meta;
@@ -61,7 +61,7 @@ int main() {
   //
   static_assert(!map_instance<pair<int, float>>);
   static_assert(!map_instance<pair<float, float>>);
-  static_assert(!map_instance<pair<czstring, std::string>>);
+  static_assert(!map_instance<pair<const char*, std::string>>);
   static_assert(!map_instance<pair<std::string_view, std::string>>);
   static_assert(!map_instance<pair<as_type<-1>, float>>);
   static_assert(!map_instance<pair<int, as_type<"integer"_xs>>>);

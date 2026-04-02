@@ -15,12 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
-#include <print>
-//
-#include <xstd/meta/string.hpp>
+#undef NDEBUG
+#include <cassert>
 
-using namespace std;
-using namespace xstd::meta;
+import std;
+import xstd;
+
+using xstd::meta::string;
+using namespace xstd::meta::literals;
 
 static_assert(std::ranges::contiguous_range<decltype(""_xs)>);
 static_assert(std::ranges::contiguous_range<decltype("help"_xs)>);

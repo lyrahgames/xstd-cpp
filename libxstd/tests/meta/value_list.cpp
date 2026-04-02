@@ -15,12 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
-#include <print>
-#include <thread>
-//
-#include <xstd/functional/match.hpp>
-#include <xstd/meta/type_list.hpp>
-#include <xstd/meta/value_list.hpp>
+import std;
+import xstd;
 
 // Only the template itself needs to be available
 // to access all its functions by making use of ADL.
@@ -30,7 +26,6 @@ using xstd::meta::value_list_instance;
 
 // Additional utilities for testing.
 //
-using xstd::match;
 using xstd::meta::as_signature;
 using xstd::meta::as_type;
 using xstd::meta::as_value;
@@ -507,27 +502,4 @@ static_assert(fold(value_list<-1, 'c', 1.23f, 3.21e-1>{},
                                    value_tag<1.23f>,
                                    value_tag<3.21e-1>>{});
 
-int main() {
-  constexpr auto matcher = match{
-      [](int x) { return std::format("{}: int", x); },
-      [](char x) { return std::format("{}: char", x); },
-      [](float x) { return std::format("{}: float", x); },
-      [](double x) { return std::format("{}: double", x); },
-  };
-
-  constexpr auto values = value_list<-1, 'c', 1.23f, 3.21e-1>{};
-
-  int index = 0;
-  for_each(values, [&]<auto value> {
-    std::print("value[{}] = {}\n", index++, matcher(value));
-  });
-
-  index = 0;
-
-  const auto succeded = for_each_until(values, [&]<auto value> {
-    std::print("value[{}] = {}\n", index++, matcher(value));
-    return as_value<decltype(value)> == as_value<float>;
-  });
-
-  if (succeded) std::print("Finished before end of list.\n");
-}
+int main() {}

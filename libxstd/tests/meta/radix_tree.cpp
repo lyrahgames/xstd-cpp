@@ -1,4 +1,4 @@
-// Copyright © 2024 Markus Pawellek
+// Copyright © 2026 Markus Pawellek
 //
 // This file is part of `xstd`.
 //
@@ -15,147 +15,126 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
-#include <iomanip>
-#include <iostream>
-#include <print>
-//
-#include <xstd/meta/radix_tree.hpp>
+import std;
+import xstd;
 
-using xstd::meta::radix_tree;
-using xstd::meta::radix_tree_from;
-
-namespace detail = xstd::meta::detail;
-using detail::radix_tree::leaf;
-using detail::radix_tree::node;
-using detail::radix_tree::node_list;
-
-static_assert(radix_tree<>{} == radix_tree<node<"">>{});
-static_assert(radix_tree_from<>() == radix_tree<>{});
-
-static_assert(radix_tree_from<"">() == radix_tree<leaf<"">>{});
-
-static_assert(radix_tree_from<"help">() == radix_tree<  //
-                                               node<"",
-                                                    node_list<  //
-                                                        leaf<"help">>>>{});
-
-static_assert(radix_tree_from<"help", "help">() ==
-              radix_tree<  //
-                  node<"",
-                       node_list<  //
-                           leaf<"help">>>>{});
-
-static_assert(radix_tree_from<"help", "">() == radix_tree<  //
-                                                   leaf<"",
-                                                        node_list<  //
-                                                            leaf<"help">>>>{});
-
-static_assert(radix_tree_from<"help", "helo">() ==  //
-              radix_tree<                           //
-                  node<"",
-                       node_list<  //
-                           node<"hel",
-                                node_list<      //
-                                    leaf<"o">,  //
-                                    leaf<"p">>>>>>{});
-
-static_assert(radix_tree_from<"help", "version">() ==  //
-              radix_tree<                              //
-                  node<"",
-                       node_list<         //
-                           leaf<"help">,  //
-                           leaf<"version">>>>{});
-
-static_assert(radix_tree_from<"help", "hel">() ==  //
-              radix_tree<                          //
-                  node<"",
-                       node_list<  //
-                           leaf<"hel",
-                                node_list<  //
-                                    leaf<"p">>>>>>{});
-
-static_assert(radix_tree_from<"help",
-                              "hello",
-                              "version",
-                              "verbose",
-                              "very",
-                              "in",
-                              "input",
-                              "out",
-                              "output">() ==  //
-              radix_tree<node<"",
-                              node_list<  //
-                                  node<"hel",
-                                       node_list<        //
-                                           leaf<"lo">,   //
-                                           leaf<"p">>>,  //
-                                  leaf<"in",
-                                       node_list<          //
-                                           leaf<"put">>>,  //
-                                  leaf<"out",
-                                       node_list<          //
-                                           leaf<"put">>>,  //
-                                  node<"ver",
-                                       node_list<         //
-                                           leaf<"bose">,  //
-                                           leaf<"sion">,  //
-                                           leaf<"y">>>    //
-                                  >>>{});
-
-using xstd::czstring;
-using namespace xstd;
 using namespace xstd::meta;
-using namespace std;
 
-template <meta::detail::radix_tree::node_instance root, meta::string prefix>
+template <string str, radix_node_instance... nodes>
+using leaf = radix_node<str, true, nodes...>;
+template <string str, radix_node_instance... nodes>
+using node = radix_node<str, false, nodes...>;
+
+static_assert(         //
+    radix_tree<>{} ==  //
+    radix_tree<node<"">>{});
+
+// static_assert(radix_tree_from<>() == radix_tree<>{});
+
+static_assert(                //
+    radix_tree_from<"">() ==  //
+    radix_tree<leaf<"">>{});
+
+static_assert(                    //
+    radix_tree_from<"help">() ==  //
+    radix_tree<                   //
+        node<"",                  //
+             leaf<"help">>>{});
+
+static_assert(                            //
+    radix_tree_from<"help", "help">() ==  //
+    radix_tree<                           //
+        node<"",                          //
+             leaf<"help">>>{});
+
+static_assert(                        //
+    radix_tree_from<"help", "">() ==  //
+    radix_tree<                       //
+        leaf<"",                      //
+             leaf<"help">>>{});
+
+static_assert(                            //
+    radix_tree_from<"help", "helo">() ==  //
+    radix_tree<                           //
+        node<"",                          //
+             node<"hel",                  //
+                  leaf<"o">,              //
+                  leaf<"p">>>>{});
+
+static_assert(                               //
+    radix_tree_from<"help", "version">() ==  //
+    radix_tree<                              //
+        node<"",                             //
+             leaf<"help">,                   //
+             leaf<"version">>>{});
+
+static_assert(                           //
+    radix_tree_from<"help", "hel">() ==  //
+    radix_tree<                          //
+        node<"",                         //
+             leaf<"hel",                 //
+                  leaf<"p">>>>{});
+
+static_assert(  //
+    radix_tree_from<"help",
+                    "hello",
+                    "version",
+                    "verbose",
+                    "very",
+                    "input",
+                    "in",
+                    "out",
+                    "output">() ==  //
+    radix_tree<                     //
+        node<"",                    //
+             node<"hel",            //
+                  leaf<"lo">,       //
+                  leaf<"p">>,       //
+             leaf<"in",             //
+                  leaf<"put">>,     //
+             leaf<"out",            //
+                  leaf<"put">>,     //
+             node<"ver",            //
+                  leaf<"bose">,     //
+                  leaf<"sion">,     //
+                  leaf<"y">>>>{});
+
+template <radix_node_instance node, string prefix>
 constexpr void print() {
-  constexpr auto str = prefix + '|' + root::prefix;
-  for_each(typename root::children{},
-           [&]<typename child> { print<child, str>(); });
-  if constexpr (root::is_leaf) cout << '"' << str << '"' << endl;
+  constexpr auto str = prefix + '|' + label(node{});
+  for_each(children(node{}), [&]<typename child> { print<child, str>(); });
+  if constexpr (is_leaf(node{})) std::println("{}", str);
 }
 
-constexpr void print(radix_tree_instance auto t) {
-  using tree = decltype(t);
-  for_each(children(root(tree{})),
-           [&]<typename child> { print<child, tree::root::prefix>(); });
-  if constexpr (tree::root::is_leaf)
-    cout << '"' << tree::root::prefix << '"' << endl;
+constexpr void print(radix_tree_instance auto tree) {
+  for_each(children(root(tree)),
+           [&]<typename child> { print<child, label(root(tree))>(); });
+  if constexpr (is_leaf(root(tree))) std::println("{}", label(root(tree)));
 }
 
-inline void print_visit(radix_tree_instance auto tree, czstring cstr) {
-  const auto visited = visit(tree, cstr, []<meta::string str> {
-    cout << '"' << str << '"' << " has been visited!" << endl;
+inline void print_visit(radix_tree_instance auto tree, std::string_view str) {
+  const auto visited = visit(tree, str, []<string key> {
+    std::println("'{}' has been visited.", key);
   });
-  if (!visited)
-    cout << '"' << cstr << '"' << " is not inside the static radix tree."
-         << endl;
+  if (!visited) std::println("'{}' not found.", str);
 }
 
-inline void print_traverse(radix_tree_instance auto tree, czstring cstr) {
+inline void print_traverse(radix_tree_instance auto tree,
+                           std::string_view str) {
   const auto traversed =
-      traverse(tree, cstr, [&]<meta::string str>(czstring tail) {
-        cout << '"' << cstr << '"' << " visited the prefix \"" << str
-             << "\" with the tail \"" << tail << "\"!" << endl;
+      traverse(tree, str, [&]<string key>(std::string_view tail) {
+        std::println("'{}' = '{}' + '{}'", str, key, tail);
       });
-  if (!traversed)
-    cout << '"' << cstr << '"'
-         << " has no known prefix inside the static radix tree." << endl;
+  if (!traversed) std::println("No prefix of '{}' found.", str);
 }
 
 int main() {
-  using meta::detail::radix_tree::leaf;
-  using meta::detail::radix_tree::node;
-  using meta::detail::radix_tree::node_list;
-
-  // meta::print_type(
-  //     static_radix_tree_from<"help", "hello", "version", "verbose", "very",
-  //                            "in", "input", "out", "output">());
-
   constexpr auto tree =
       radix_tree_from<"help", "version", "helo", "hel", "verbose", "help-me",
                       "abc", "key", "check", "make", "input", "output", "man",
                       "cheat", "in", "out", "help", "help">();
+
+  // breakpoint(tree);
 
   print(tree);
 

@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
-#include <xstd/meta/name_list.hpp>
+import xstd;
 
 using xstd::meta::name_list;
 using xstd::meta::name_list_instance;

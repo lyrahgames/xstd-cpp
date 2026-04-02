@@ -1,0 +1,88 @@
+// Copyright © 2026 Markus Pawellek
+//
+// This file is part of `xstd`.
+//
+// `xstd` is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License,
+// or (at your option) any later version.
+//
+// `xstd` is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
+//
+export module xstd:meta.breakpoint;
+
+namespace xstd::meta {
+
+/// Forces a compile-time error that allows
+/// to inspect a single explicitly given type.
+///
+export template <typename type>
+void breakpoint() = delete (
+    "Compilation stopped as requested. "
+    "Remove to successfully compile.");
+
+/// Forces a compile-time error that allows
+/// to inspect multiple explicitly given types.
+///
+export template <typename... types>
+  requires(sizeof...(types) > 1)
+void breakpoint() = delete (
+    "Compilation stopped as requested. "
+    "Remove to successfully compile.");
+
+/// Forces a compile-time error that allows to inspect
+/// the decayed type of a single given argument.
+/// No abbreviated function template is used to improve error message.
+///
+export template <typename type>
+void breakpoint(type) = delete (
+    "Compilation stopped as requested. "
+    "Remove to successfully compile.");
+
+/// Forces a compile-time error that allows to inspect
+/// the decayed type of multiple given arguments.
+/// No abbreviated function template is used to improve error message.
+///
+export template <typename... types>
+  requires(sizeof...(types) > 1)
+void breakpoint(types...) = delete (
+    "Compilation stopped as requested. "
+    "Remove to successfully compile.");
+
+/// Generates a compiler warning that allows
+/// to inspect a single explicitly given type.
+///
+export template <typename type>
+[[deprecated("Warning generated as requested.")]]
+void watchpoint() {}
+
+/// Generates a compiler warning that allows
+/// to inspect multiple explicitly given types.
+///
+export template <typename... types>
+  requires(sizeof...(types) > 1)
+[[deprecated("Warning generated as requested.")]]
+void watchpoint() {}
+
+/// Generates a compiler warning that allows to inspect
+/// the decayed type of a single given argument.
+///
+export template <typename type>
+[[deprecated("Warning generated as requested.")]]
+void watchpoint(type) {}
+
+/// Generates a compiler warning that allows to inspect
+/// the decayed type of multiple given arguments.
+///
+export template <typename... types>
+  requires(sizeof...(types) > 1)
+[[deprecated("Warning generated as requested.")]]
+void watchpoint(types...) {}
+
+}  // namespace xstd::meta

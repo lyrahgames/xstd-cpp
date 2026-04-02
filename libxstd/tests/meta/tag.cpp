@@ -15,14 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
-#include <thread>
-//
-#include <xstd/meta/tag.hpp>
+import std;
+import xstd;
 
 using namespace xstd::meta;
 
-/// All instances of `type_tag` fulfill `generic_tag`,
-/// `generic_type_tag`, and `type_tag_instance`.
+/// All instances of `type_tag` fulfill `tag_like`,
+/// `type_tag_like`, and `type_tag_instance`.
 ///
 static_assert(type_tag_instance<type_tag<int>>);
 static_assert(type_tag_instance<type_tag<void>>);
@@ -34,16 +33,16 @@ static_assert(!type_tag_instance<int>);
 static_assert(!type_tag_instance<void>);
 static_assert(!type_tag_instance<float>);
 //
-static_assert(generic_tag<type_tag<int>>);
-static_assert(generic_tag<type_tag<void>>);
-static_assert(generic_tag<type_tag<float>>);
+static_assert(tag_like<type_tag<int>>);
+static_assert(tag_like<type_tag<void>>);
+static_assert(tag_like<type_tag<float>>);
 //
-static_assert(generic_type_tag<type_tag<int>>);
-static_assert(generic_type_tag<type_tag<void>>);
-static_assert(generic_type_tag<type_tag<float>>);
+static_assert(type_tag_like<type_tag<int>>);
+static_assert(type_tag_like<type_tag<void>>);
+static_assert(type_tag_like<type_tag<float>>);
 
-/// All `value_tag` instances fulfill `generic_tag`,
-/// `generic_value_tag`, and `value_tag_instance`.
+/// All `value_tag` instances fulfill `tag_like`,
+/// `value_tag_like`, and `value_tag_instance`.
 ///
 static_assert(value_tag_instance<value_tag<-1>>);
 static_assert(value_tag_instance<value_tag<'c'>>);
@@ -52,60 +51,60 @@ static_assert(!value_tag_instance<type_tag<int>>);
 static_assert(!value_tag_instance<type_tag<void>>);
 static_assert(!value_tag_instance<type_tag<float>>);
 //
-static_assert(generic_tag<value_tag<-1>>);
-static_assert(generic_tag<value_tag<1.23f>>);
-static_assert(generic_tag<value_tag<'c'>>);
+static_assert(tag_like<value_tag<-1>>);
+static_assert(tag_like<value_tag<1.23f>>);
+static_assert(tag_like<value_tag<'c'>>);
 //
-static_assert(generic_value_tag<value_tag<-1>>);
-static_assert(generic_value_tag<value_tag<1.23f>>);
-static_assert(generic_value_tag<value_tag<'c'>>);
+static_assert(value_tag_like<value_tag<-1>>);
+static_assert(value_tag_like<value_tag<1.23f>>);
+static_assert(value_tag_like<value_tag<'c'>>);
 
 /// `std::integral_constant` instances fulfill
-/// `generic_tag` and `generic_value_tag`.
+/// `tag_like` and `value_tag_like`.
 ///
-static_assert(generic_tag<std::true_type>);
-static_assert(generic_tag<std::false_type>);
-static_assert(generic_value_tag<std::true_type>);
-static_assert(generic_value_tag<std::false_type>);
+static_assert(tag_like<std::true_type>);
+static_assert(tag_like<std::false_type>);
+static_assert(value_tag_like<std::true_type>);
+static_assert(value_tag_like<std::false_type>);
 static_assert(!type_tag_instance<std::true_type>);
 static_assert(!type_tag_instance<std::false_type>);
 static_assert(!value_tag_instance<std::true_type>);
 static_assert(!value_tag_instance<std::false_type>);
 //
-static_assert(generic_tag<std::integral_constant<int, -1>>);
-static_assert(generic_tag<std::integral_constant<size_t, 1>>);
-static_assert(generic_tag<std::integral_constant<float, 1.23f>>);
-static_assert(generic_value_tag<std::integral_constant<int, -1>>);
-static_assert(generic_value_tag<std::integral_constant<size_t, 1>>);
-static_assert(generic_value_tag<std::integral_constant<float, 1.23f>>);
+static_assert(tag_like<std::integral_constant<int, -1>>);
+static_assert(tag_like<std::integral_constant<std::size_t, 1>>);
+static_assert(tag_like<std::integral_constant<float, 1.23f>>);
+static_assert(value_tag_like<std::integral_constant<int, -1>>);
+static_assert(value_tag_like<std::integral_constant<std::size_t, 1>>);
+static_assert(value_tag_like<std::integral_constant<float, 1.23f>>);
 static_assert(!type_tag_instance<std::integral_constant<int, -1>>);
-static_assert(!type_tag_instance<std::integral_constant<size_t, 1>>);
+static_assert(!type_tag_instance<std::integral_constant<std::size_t, 1>>);
 static_assert(!type_tag_instance<std::integral_constant<float, 1.23f>>);
 static_assert(!value_tag_instance<std::integral_constant<int, -1>>);
-static_assert(!value_tag_instance<std::integral_constant<size_t, 1>>);
+static_assert(!value_tag_instance<std::integral_constant<std::size_t, 1>>);
 static_assert(!value_tag_instance<std::integral_constant<float, 1.23f>>);
 
 /// Other standard tag types, such as `std::in_place_type_t`, fulfill
-/// `generic_tag` but not `generic_value_tag` or `generic_type_tag`
+/// `tag_like` but not `value_tag_like` or `type_tag_like`
 /// as do not offer access to their wrapped value or type.
 ///
-static_assert(generic_tag<std::in_place_index_t<0>>);
-static_assert(generic_tag<std::in_place_index_t<1>>);
-static_assert(!generic_value_tag<std::in_place_index_t<0>>);
-static_assert(!generic_value_tag<std::in_place_index_t<1>>);
-static_assert(!generic_type_tag<std::in_place_index_t<0>>);
-static_assert(!generic_type_tag<std::in_place_index_t<1>>);
+static_assert(tag_like<std::in_place_index_t<0>>);
+static_assert(tag_like<std::in_place_index_t<1>>);
+static_assert(!value_tag_like<std::in_place_index_t<0>>);
+static_assert(!value_tag_like<std::in_place_index_t<1>>);
+static_assert(!type_tag_like<std::in_place_index_t<0>>);
+static_assert(!type_tag_like<std::in_place_index_t<1>>);
 //
-static_assert(generic_tag<std::in_place_type_t<int>>);
-static_assert(generic_tag<std::in_place_type_t<float>>);
-static_assert(!generic_type_tag<std::in_place_type_t<int>>);
-static_assert(!generic_type_tag<std::in_place_type_t<float>>);
-static_assert(!generic_value_tag<std::in_place_type_t<int>>);
-static_assert(!generic_value_tag<std::in_place_type_t<float>>);
+static_assert(tag_like<std::in_place_type_t<int>>);
+static_assert(tag_like<std::in_place_type_t<float>>);
+static_assert(!type_tag_like<std::in_place_type_t<int>>);
+static_assert(!type_tag_like<std::in_place_type_t<float>>);
+static_assert(!value_tag_like<std::in_place_type_t<int>>);
+static_assert(!value_tag_like<std::in_place_type_t<float>>);
 //
-static_assert(generic_tag<std::integer_sequence<std::size_t, 0, 2, 1>>);
-static_assert(!generic_type_tag<std::integer_sequence<std::size_t, 0, 2, 1>>);
-static_assert(!generic_value_tag<std::integer_sequence<std::size_t, 0, 2, 1>>);
+static_assert(tag_like<std::integer_sequence<std::size_t, 0, 2, 1>>);
+static_assert(!type_tag_like<std::integer_sequence<std::size_t, 0, 2, 1>>);
+static_assert(!value_tag_like<std::integer_sequence<std::size_t, 0, 2, 1>>);
 
 /// The usage of `as_value` with `value_tag` instances
 /// returns the wrapped value directly.
@@ -137,49 +136,53 @@ static_assert(as_value<std::thread> == type_tag<std::thread>{});
 /// The usage of `as_type` with instances of `type_tag`
 /// returns the wrapped type directly.
 ///
-static_assert(equal<as_type<type_tag<int>{}>, int>);
-static_assert(equal<as_type<type_tag<float>{}>, float>);
-static_assert(equal<as_type<type_tag<std::string>{}>, std::string>);
-static_assert(equal<as_type<type_tag<std::thread>{}>, std::thread>);
+static_assert(std::same_as<as_type<type_tag<int>{}>, int>);
+static_assert(std::same_as<as_type<type_tag<float>{}>, float>);
+static_assert(std::same_as<as_type<type_tag<std::string>{}>, std::string>);
+static_assert(std::same_as<as_type<type_tag<std::thread>{}>, std::thread>);
 
 /// Using `as_type` with values whose types are other tag types
 /// results in the types of those values by using `decltype`.
 ///
-static_assert(equal<as_type<value_tag<1.23f>{}>, value_tag<1.23f>>);
-static_assert(equal<as_type<value_tag<-1>{}>, value_tag<-1>>);
-static_assert(equal<as_type<value_tag<'c'>{}>, value_tag<'c'>>);
-static_assert(equal<as_type<std::true_type{}>, std::true_type>);
-static_assert(equal<as_type<std::false_type{}>, std::false_type>);
-static_assert(equal<as_type<std::in_place_index<0>>, std::in_place_index_t<0>>);
+static_assert(std::same_as<as_type<value_tag<1.23f>{}>, value_tag<1.23f>>);
+static_assert(std::same_as<as_type<value_tag<-1>{}>, value_tag<-1>>);
+static_assert(std::same_as<as_type<value_tag<'c'>{}>, value_tag<'c'>>);
+static_assert(std::same_as<as_type<std::true_type{}>, std::true_type>);
+static_assert(std::same_as<as_type<std::false_type{}>, std::false_type>);
 static_assert(
-    equal<as_type<std::in_place_type<int>>, std::in_place_type_t<int>>);
+    std::same_as<as_type<std::in_place_index<0>>, std::in_place_index_t<0>>);
+static_assert(
+    std::same_as<as_type<std::in_place_type<int>>, std::in_place_type_t<int>>);
 
 /// Using `as_type` on any other value results in an
 /// instance of `value_tag` that wraps the given value.
 ///
-static_assert(equal<as_type<1.23f>, value_tag<1.23f>>);
-static_assert(equal<as_type<-1>, value_tag<-1>>);
-static_assert(equal<as_type<'c'>, value_tag<'c'>>);
+static_assert(std::same_as<as_type<1.23f>, value_tag<1.23f>>);
+static_assert(std::same_as<as_type<-1>, value_tag<-1>>);
+static_assert(std::same_as<as_type<'c'>, value_tag<'c'>>);
 
 /// Using of `as_value` and then `as_type`:
 ///
-static_assert(equal<int, as_type<as_value<int>>>);
-static_assert(equal<float, as_type<as_value<float>>>);
-static_assert(equal<std::string, as_type<as_value<std::string>>>);
-static_assert(equal<std::thread, as_type<as_value<std::thread>>>);
+static_assert(std::same_as<int, as_type<as_value<int>>>);
+static_assert(std::same_as<float, as_type<as_value<float>>>);
+static_assert(std::same_as<std::string, as_type<as_value<std::string>>>);
+static_assert(std::same_as<std::thread, as_type<as_value<std::thread>>>);
 //
-static_assert(equal<value_tag<1.23f>, as_type<as_value<value_tag<1.23f>>>>);
-static_assert(equal<value_tag<-1>, as_type<as_value<value_tag<-1>>>>);
-static_assert(equal<value_tag<'c'>, as_type<as_value<value_tag<'c'>>>>);
+static_assert(
+    std::same_as<value_tag<1.23f>, as_type<as_value<value_tag<1.23f>>>>);
+static_assert(std::same_as<value_tag<-1>, as_type<as_value<value_tag<-1>>>>);
+static_assert(std::same_as<value_tag<'c'>, as_type<as_value<value_tag<'c'>>>>);
 //
-static_assert(equal<int, as_type<as_value<type_tag<int>>>>);
-static_assert(equal<float, as_type<as_value<type_tag<float>>>>);
-static_assert(equal<std::string, as_type<as_value<type_tag<std::string>>>>);
-static_assert(equal<std::thread, as_type<as_value<type_tag<std::thread>>>>);
+static_assert(std::same_as<int, as_type<as_value<type_tag<int>>>>);
+static_assert(std::same_as<float, as_type<as_value<type_tag<float>>>>);
+static_assert(
+    std::same_as<std::string, as_type<as_value<type_tag<std::string>>>>);
+static_assert(
+    std::same_as<std::thread, as_type<as_value<type_tag<std::thread>>>>);
 //
-static_assert(equal<std::true_type, as_type<as_value<std::true_type>>>);
-static_assert(equal<std::in_place_type_t<int>,
-                    as_type<as_value<std::in_place_type_t<int>>>>);
+static_assert(std::same_as<std::true_type, as_type<as_value<std::true_type>>>);
+static_assert(std::same_as<std::in_place_type_t<int>,
+                           as_type<as_value<std::in_place_type_t<int>>>>);
 
 /// Using of `as_type` and then `as_value`:
 ///
@@ -215,9 +218,9 @@ static_assert(as_value<int> != as_value<int&>);
 /// Use `as_signature` as utility to test values for
 /// strict equality, i.e., equality of type and value.
 ///
-static_assert(uint32_t{1} == uint64_t{1});
-static_assert(as_signature<uint32_t{1}> != as_signature<uint64_t{1}>);
-static_assert(as_signature<uint64_t{1}> == as_signature<uint64_t{1}>);
+static_assert(std::uint32_t{1} == std::uint64_t{1});
+static_assert(as_signature<std::uint32_t{1}> != as_signature<std::uint64_t{1}>);
+static_assert(as_signature<std::uint64_t{1}> == as_signature<std::uint64_t{1}>);
 static_assert(as_signature<true> == value_tag<true>{});
 static_assert(as_signature<1> != as_signature<1ull>);
 static_assert(1 == 1ull);

@@ -1,0 +1,78 @@
+// Copyright © 2024 Markus Pawellek
+//
+// This file is part of `xstd`.
+//
+// `xstd` is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License,
+// or (at your option) any later version.
+//
+// `xstd` is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
+//
+export module xstd:meta.index_list;
+import :meta.value_list;
+import std;
+
+namespace xstd::meta {
+
+/// 'index_list' is a constrained alias of 'value_list'
+/// that only contains values of type 'std::size_t'.
+///
+export template <std::size_t... indices>
+using index_list = value_list<indices...>;
+
+template <typename type>
+struct is_index_list : std::false_type {};
+
+template <std::size_t... indices>
+struct is_index_list<index_list<indices...>> : std::true_type {};
+
+/// Check whether the given type is an instance of 'index_list'.
+///
+export template <typename T>
+concept index_list_instance = is_index_list<T>::value;
+
+///
+/// Constructor Extensions
+///
+
+///
+///
+export template <std::size_t size, std::size_t offset = 0>
+  requires(size == 0)
+consteval auto iota() {
+  return index_list<>{};
+}
+//
+export template <std::size_t size, std::size_t offset = 0>
+  requires(size > 0)
+consteval auto iota() {
+  return index_list<offset>{} + iota<size - 1, offset + 1>();
+}
+
+///
+///
+export template <std::size_t size>
+consteval auto indices_less_than() {
+  return iota<size>();
+}
+
+///
+/// Predicates
+///
+
+/// Check whether each contained value inside the
+/// index list is smaller than a given integer.
+///
+export template <std::size_t bound>
+consteval bool bounded(index_list_instance auto list) {
+  return all_of(list, []<std::size_t x> { return x < bound; });
+}
+
+}  // namespace xstd::meta

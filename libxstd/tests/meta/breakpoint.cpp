@@ -1,4 +1,4 @@
-// Copyright © 2024 Markus Pawellek
+// Copyright © 2026 Markus Pawellek
 //
 // This file is part of `xstd`.
 //
@@ -15,14 +15,17 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
+import std;
 import xstd;
 
-using xstd::meta::string_list;
-using xstd::meta::string_list_instance;
+using xstd::meta::breakpoint;
+using xstd::meta::watchpoint;
 
-static_assert(string_list_instance<string_list<>>);
-static_assert(string_list_instance<string_list<"help">>);
-static_assert(string_list_instance<string_list<"hello">>);
-static_assert(string_list_instance<string_list<"version">>);
+int main() {
+  auto time = std::chrono::steady_clock::now();
+  // breakpoint(time);
+  // breakpoint<decltype(time)>();
 
-int main() {}
+  watchpoint(time);
+  watchpoint<decltype(time)>();
+}

@@ -1,1 +1,7 @@
-./: {*/ -build/}
+./: meta/
+
+for x: cxx{*}
+{
+  n = $name($x)
+  ./: exe{$n}: $x $xstd
+}

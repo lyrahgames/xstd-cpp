@@ -16,10 +16,8 @@
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
 #include <doctest/doctest.h>
-//
-#include <xstd/functional/match.hpp>
-#include <xstd/functional/variant.hpp>
-#include <xstd/math.hpp>
+import std;
+import xstd;
 
 using namespace xstd;
 
