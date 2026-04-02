@@ -1,5 +1,3 @@
-./: {*/ -build/} manifest doc{README.md} legal{AUTHORS.md COPYING.md}
-
-# Don't install tests.
-#
-tests/: install = false
+./: manifest doc{README.md CHANGELOG.md} legal{AUTHORS.md COPYING.md}
+./: sources/
+./: tests/: install = false
