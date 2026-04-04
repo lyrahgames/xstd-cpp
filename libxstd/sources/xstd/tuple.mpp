@@ -16,439 +16,618 @@
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
 export module xstd:tuple;
-import :defaults;
 import :meta;
-import :match;
 import std;
 
-export namespace xstd {
+namespace xstd {
 
-/// Check whether there exists a specialization of `std::tuple_size`
-/// for `type` that returns a value representing a size.
+/// This concept checks whether there exists a specialization of `std::tuple_size`
+/// for `type`. The specialization's `value` must be convertible to `std::size_t`
+/// Additionally, the value must be a compile-time constant expression.
 ///
 template <typename type>
-concept has_std_tuple_size = requires {
-  { std::tuple_size<type>::value } -> std::convertible_to<size_t>;
-};
-
-/// Check whether there exists a specialization of `std::tuple_element`
-/// for `type` and `index` that returns a type.
-///
-template <typename type, size_t index>
-concept has_std_tuple_element_for =
-    requires { typename std::tuple_element<index, type>::type; };
-
-/// Check whether there exist specializations of `std::tuple_element`
-/// for `type` and all indices in the range [0,`std::tuple_size<type>::value`).
-///
-template <typename type>
-concept std_tuple_element_accessible =
-    has_std_tuple_size<type> &&
-    all_of(meta::indices_less_than<std::tuple_size<type>::value>(),
-           []<size_t index> { return has_std_tuple_element_for<type, index>; });
-
-/// Check whether there is an overload of `get` that can be found by ADL and
-/// invoked with `index` as template argument and `type` as function argument.
-/// `get<index>(type)` must return a type that is convertible
-/// to the standard tuple element of `type` at `index`.
-///
-template <typename type, size_t index>
-concept std_tuple_gettable_for =
-    has_std_tuple_element_for<std::remove_cvref_t<type>, index> &&  //
-    requires(type value) {
-      {
-        get<index>(value)
-      } -> std::convertible_to<  //
-          typename std::tuple_element<index, std::remove_cvref_t<type>>::type>;
-    };
-
-/// Check whether an overload of `get` can be found by ADL and invoked
-/// with `type` as function argument and for all indices in the range
-/// [0,`std::tuple_size<type>::value`) as template argument.
-/// The return types of `get` must be convertible
-/// to the standard tuple element types of `type`.
-///
-template <typename type>
-concept std_tuple_gettable =
-    std_tuple_element_accessible<std::remove_cvref_t<type>> &&
-    all_of(meta::indices_less_than<
-               std::tuple_size<std::remove_cvref_t<type>>::value>(),
-           []<size_t index> { return std_tuple_gettable_for<type, index>; });
-
-/// Check whether a given type fulfills the criteria of generic tuple or tuple-like.
-/// In that case, the type can be used with tuple-like structured bindings.
-///
-template <typename type>
-concept generic_tuple = std_tuple_gettable<type>;
-template <typename type>
-concept tuple_like = std_tuple_gettable<type>;
-
-/// Convenience wrapper function to access
-/// `std::tuple_size` for generic tuples.
-///
-template <tuple_like tuple>
-consteval auto tuple_size() noexcept {
-  return std::tuple_size<std::remove_cvref_t<tuple>>::value;
-}
-
-/// Convenience wrapper function to access
-/// `std::tuple_element` for generic tuples.
-///
-template <size_t index, tuple_like tuple>
-consteval auto tuple_element() noexcept {
-  return meta::as_value<
-      typename std::tuple_element<index, std::remove_cvref_t<tuple>>::type>;
-}
-
-/// Get access to a generic tuple's element at index `index`.
-/// This function is a convenient wrapper for `std::get`.
-///
-template <size_t index>
-constexpr auto&& at(tuple_like auto&& t) noexcept(
-    noexcept(get<index>(std::forward<decltype(t)>(t)))) {
-  return get<index>(std::forward<decltype(t)>(t));
-}
-
-/// Return all indices of the tuple-like type
-/// `tuple` as a `meta::index_list` object.
-///
-template <tuple_like tuple>
-consteval auto indices() noexcept {
-  return meta::indices_less_than<tuple_size<tuple>()>();
-}
-
-/// Return all types of the tuple-like type
-/// `tuple` as a `meta::type_list` object.
-///
-template <tuple_like tuple>
-consteval auto types() noexcept {
-  return fold(indices<tuple>(), []<size_t... indices> {
-    return meta::type_list<meta::as_type<tuple_element<indices, tuple>()>...>{};
-  });
-}
-
-/// Check whether the type `functor` is a callable that can be
-/// invoked with all elements of the tuple-like type `tuple`.
-///
-template <typename functor, typename tuple>
-concept tuple_functor_for =
-    tuple_like<tuple> && all_of(indices<tuple>(), []<size_t index> {
-      return std::invocable<functor,
-                            decltype(at<index>(std::declval<tuple>()))>;
-    });
-
-/// Check whether the type `functor` is a callable that can be invoked
-/// with all elements of the tuple-like type `tuple` as function arguments
-/// and their respective indices as template argument.
-///
-template <typename functor, typename tuple, size_t index>
-concept tuple_index_functor_for_index = requires(functor f, tuple t) {
-  f.template operator()<index>(at<index>(t));
-};
-//
-template <typename functor, typename tuple>
-concept tuple_index_functor_for =
-    tuple_like<tuple> && all_of(indices<tuple>(), []<size_t index> {
-      return tuple_index_functor_for_index<functor, tuple, index>;
-    });
-
-/// Invoke the given functor for each element of the tuple.
-/// The functor is simply a unary callable that can be
-/// invoked with all element types of the given tuple.
-///
-/// Example Lambda Expression:
-/// for_each(tuple, [](auto value){ ... });
-///
-template <tuple_like tuple, tuple_functor_for<tuple> functor>
-constexpr void for_each(tuple&& t, functor&& f) {
-  for_each(indices<tuple>(),
-           [&]<size_t index> { f(at<index>(std::forward<tuple>(t))); });
-}
-
-/// Invoke the given functor for each element of the tuple.
-/// The invocation will instantiate the `operator()`
-/// with the element's index as template argument.
-///
-/// Example Lambda Expression:
-/// for_each(tuple, []<size_t index>(auto value){ ... });
-///
-template <tuple_like tuple, tuple_index_functor_for<tuple> functor>
-constexpr void for_each(tuple&& t, functor&& f) {
-  for_each(indices<tuple>(), [&]<size_t index> {
-    f.template operator()<index>(at<index>(std::forward<tuple>(t)));
-  });
-}
-
-/// Invoke the callable object `f` with the elements of `t` as arguments.
-/// Similar to `std::apply` but for all tuple-like types.
-///
-template <typename functor, tuple_like tuple>
-constexpr decltype(auto) tuple_invoke(functor&& f, tuple&& t) {
-  return fold(indices<tuple>(), [&]<size_t... is> {
-    return std::invoke(std::forward<functor>(f),
-                       at<is>(std::forward<tuple>(t))...);
-  });
-}
-
-namespace detail {
-
-template <typename tuple_type, size_t index>
-concept tuple_get_access = requires(tuple_type value) {
+concept std_tuple_sized = requires {
   {
-    get<index>(value)
-  }
-  -> std::convertible_to<typename std::tuple_element<index, tuple_type>::type>;
+    // Do not use `std::tuple_size_v` for this requirement. Type function aliases
+    // are unconditionally defined regardless of template arguments. To query a type // that does not specialize `std::tuple_size` leads to compiler errors.
+    // `std::tuple_size` is specialized for `const`/`volatile`. Only remove
+    // references by `std::remove_reference_t` to make use of this specialization.
+    std::tuple_size<std::remove_reference_t<type>>::value
+  } -> std::convertible_to<std::size_t>;
 };
 
-template <typename tuple_type, size_t index>
-concept xstd_tuple_value_access = requires(tuple_type tuple) {
-  {
-    value<index>(tuple)
-  } -> std::convertible_to<typename tuple_type::template type<index>>;
-  // Only ask for specific type.
-  // For an array, you would not want to provide a type list.
-};
+namespace detail::tuple {
 
-}  // namespace detail
-
-/// Checks whether a given type fulfills the requirements of a generic tuple.
+/// Detects if a type provides a member template function `get<i>()`.
 ///
+template <typename type, std::size_t index>
+concept member_gettable =
+    requires(type&& value) { std::forward<type>(value).template get<index>(); };
+
+/// The "Poison Pill" for ADL-Only Lookup
+/// Unqualified lookup finds this name, which prevents the compiler
+/// from searching further into outer scopes leaving it only with ADL.
+///
+/// It may no longer be of importance because we use modules.
+/// Unqualified lookup is restricted to the module and cannot be hijacked
+/// from the outside by providing a `get` function in the global namespace.
+///
+// template <std::size_t>
+// void get() = delete;
+
+/// Detects if a non-member function `get<i>()` is found via ADL.
+///
+template <typename type, std::size_t index>
+concept adl_gettable =
+    requires(type&& value) { get<index>(std::forward<type>(value)); };
+
+/// Alias concept of `member_gettable` for prioritization
+///
+template <typename type, std::size_t index>
+concept member_get_at = member_gettable<type, index>;
+
+/// Alias concept of `adl_gettable` for prioritization
+///
+template <typename type, std::size_t index>
+concept adl_get_at =  // Member access must be prioritized.
+    !(member_get_at<type, index>) && adl_gettable<type, index>;
+
+/// Unified internal dispatcher for the tuple-like `get` function.
+///
+template <std::size_t index>
+constexpr decltype(auto) at(member_get_at<index> auto&& tuple) noexcept(
+    noexcept(std::forward<decltype(tuple)>(tuple).template get<index>())) {
+  return std::forward<decltype(tuple)>(tuple).template get<index>();
+}
+template <std::size_t index>
+constexpr decltype(auto) at(adl_get_at<index> auto&& tuple) noexcept(
+    noexcept(get<index>(std::forward<decltype(tuple)>(tuple)))) {
+  return get<index>(std::forward<decltype(tuple)>(tuple));
+}
+
+/// Utility used to verify that `at<i>(tuple)`'s type can bind to the
+/// type prescribed by `std::tuple_element`, ie., is convertible to it.
+///
+template <typename from, typename to>
+concept binds_to = std::convertible_to<
+    from,
+    std::conditional_t<std::is_lvalue_reference_v<from>, to&, to&&>>;
+
+/// Stricter variant of `binds_to` that requires `at<i>(tuple)`'s type
+/// to be equal to the type prescribed by `std::tuple_element`.
+///
+template <typename from, typename to>
+concept strictly_binds_to = std::same_as<
+    from,
+    std::conditional_t<std::is_lvalue_reference_v<from>, to&, to&&>>;
+
+}  // namespace detail::tuple
+
+/// Checks the validity of a specific element at `index`.
+///
+template <typename type, std::size_t index>
+concept std_tuple_element_at = requires(type&& value) {
+  {  // Use qualified look-up to be guard against external `at` functions.
+    ::xstd::detail::tuple::at<index>(std::forward<type>(value))
+  } -> detail::tuple::binds_to<
+      // `std::tuple_element` is specialized for `const`/`volatile`. Only remove
+      // references by `std::remove_reference_t` to use correct specializations.
+      typename std::tuple_element<index, std::remove_reference_t<type>>::type>;
+};
+
+/// Checks the strict validity of a specific element at `index`.
+///
+template <typename type, std::size_t index>
+concept strict_std_tuple_element_at = requires(type&& value) {
+  {
+    ::xstd::detail::tuple::at<index>(std::forward<type>(value))
+  } -> detail::tuple::strictly_binds_to<
+      typename std::tuple_element<index, std::remove_reference_t<type>>::type>;
+};
+
+/// This concept checks whether `type` fulfills the criteria of a tuple-like.
+/// A type is tuple-like if it provides a constant `std::tuple_size`,
+/// valid `std::tuple_element` specializations for all indices, and
+/// a corresponding member or ADL-found `get<i>()` function.
+///
+export template <typename type>
+concept tuple_like =
+    // Short-circuiting prevents the instantiation of the lambda below
+    // for types that do not have a specialized `std::tuple_size`.
+    std_tuple_sized<type> &&
+    // The following requirement is equivalent to:
+    //
+    // all_of(meta::iota<std::tuple_size_v<std::remove_reference_t<type>>>(),
+    //        []<auto index> { return std_tuple_element_at<type, index>; });
+    //
+    // Immediately invoked lambda expression that checks
+    // `std_tuple_element_at` for all indices of the type:
+    []<std::size_t... indices>(std::index_sequence<indices...>) {
+      return (std_tuple_element_at<type, indices> && ...);
+    }(std::make_index_sequence<
+        std::tuple_size_v<std::remove_reference_t<type>>>());
+
+/// This concept checks whether `type` fulfills the criteria of a tuple-like
+/// whose `get` functions must provide direct access to the tuples data via
+/// references to the stored types prescribed by `std::tuple_element`.
+///
+export template <typename type>
+concept strict_tuple_like =
+    // Use `tuple_like` instead of `std_tuple_sized` for concept subsumption.
+    tuple_like<type> &&
+    all_of(meta::iota<std::tuple_size_v<std::remove_reference_t<type>>>(),
+           []<auto index> { return strict_std_tuple_element_at<type, index>; });
+
+}  // namespace xstd
+
+// export namespace xstd {
+
+// /// Check whether there exists a specialization of `std::tuple_size`
+// /// for `type` that returns a value representing a size.
+// ///
+// template <typename type>
+// concept has_std_tuple_size = requires {
+//   {
+//     std::tuple_size<std::remove_reference_t<type>>::value
+//   } -> std::convertible_to<std::size_t>;
+// };
+
+// template <typename type, std::size_t index>
+// concept has_member_get =
+//     requires(type&& value) { std::forward<type>(value).template get<index>(); };
+// template <typename type, std::size_t index>
+// concept has_adl_get =
+//     requires(type&& value) { get<index>(std::forward<type>(value)); };
+
+// template <typename type, std::size_t index>
+// struct get_type {};
+// template <std::size_t index, has_member_get<index> type>
+// struct get_type<type, index> {
+//   using type = decltype(std::forward<type>(value).template get<index>());
+// };
+// template <std::size_t index, has_adl_get<index> type>
+// struct get_type<type, index> {
+//   using type = decltype(get<index>(std::forward<type>(value)));
+// };
+
+// template <typename type, typename result>
+// concept binds_to = std::convertible_to<
+//     type,
+//     std::conditional_t<std::is_lvalue_reference_v<type>, result&, result&&>>;
+
+// // template <typename type, std::size_t index>
+// // concept has_member_get = requires(type&& value) {
+// //   {
+// //     std::forward<type>(value).template get<index>()
+// //   } -> binds_to<std::tuple_element_t<index, std::remove_reference_t<type>>>;
+// // };
+
+// // template <typename type, std::size_t index>
+// // concept has_adl_get = requires(type&& value) {
+// //   {
+// //     get<index>(std::forward<type>(value))
+// //   } -> binds_to<std::tuple_element_t<index, std::remove_reference_t<type>>>;
+// // };
+
+// /// Check whether there exists a specialization of `std::tuple_element`
+// /// for `type` and `index` that returns a type.
+// ///
+// template <typename type, std::size_t index>
+// concept has_std_tuple_element_for =
+//     requires { typename std::tuple_element<index, type>::type; };
+
+// /// Check whether there exist specializations of `std::tuple_element`
+// /// for `type` and all indices in the range [0,`std::tuple_size<type>::value`).
+// ///
+// template <typename type>
+// concept std_tuple_element_accessible =
+//     has_std_tuple_size<type> &&
+//     all_of(meta::indices_less_than<std::tuple_size<type>::value>(),
+//            []<std::size_t index> {
+//              return has_std_tuple_element_for<type, index>;
+//            });
+
+// /// Check whether there is an overload of `get` that can be found by ADL and
+// /// invoked with `index` as template argument and `type` as function argument.
+// /// `get<index>(type)` must return a type that is convertible
+// /// to the standard tuple element of `type` at `index`.
+// ///
+// template <typename type, std::size_t index>
+// concept std_tuple_gettable_for =
+//     has_std_tuple_element_for<std::remove_cvref_t<type>, index> &&  //
+//     requires(type value) {
+//       {
+//         get<index>(value)
+//       } -> std::convertible_to<  //
+//           typename std::tuple_element<index, std::remove_cvref_t<type>>::type>;
+//     };
+
+// /// Check whether an overload of `get` can be found by ADL and invoked
+// /// with `type` as function argument and for all indices in the range
+// /// [0,`std::tuple_size<type>::value`) as template argument.
+// /// The return types of `get` must be convertible
+// /// to the standard tuple element types of `type`.
+// ///
+// template <typename type>
+// concept std_tuple_gettable =
+//     std_tuple_element_accessible<std::remove_cvref_t<type>> &&
+//     all_of(
+//         meta::indices_less_than<
+//             std::tuple_size<std::remove_cvref_t<type>>::value>(),
+//         []<std::size_t index> { return std_tuple_gettable_for<type, index>; });
+
+// /// Check whether a given type fulfills the criteria of generic tuple or tuple-like.
+// /// In that case, the type can be used with tuple-like structured bindings.
+// ///
+// template <typename type>
+// concept tuple_like = std_tuple_gettable<type>;
+
+// /// Convenience wrapper function to access
+// /// `std::tuple_size` for generic tuples.
+// ///
+// template <tuple_like tuple>
+// consteval auto tuple_size() noexcept {
+//   return std::tuple_size<std::remove_cvref_t<tuple>>::value;
+// }
+
+// /// Convenience wrapper function to access
+// /// `std::tuple_element` for generic tuples.
+// ///
+// template <std::size_t index, tuple_like tuple>
+// consteval auto tuple_element() noexcept {
+//   return meta::as_value<
+//       typename std::tuple_element<index, std::remove_cvref_t<tuple>>::type>;
+// }
+
+// /// Get access to a generic tuple's element at index `index`.
+// /// This function is a convenient wrapper for `std::get`.
+// ///
+// template <std::size_t index>
+// constexpr auto&& at(tuple_like auto&& t) noexcept(
+//     noexcept(get<index>(std::forward<decltype(t)>(t)))) {
+//   return get<index>(std::forward<decltype(t)>(t));
+// }
+
+// /// Return all indices of the tuple-like type
+// /// `tuple` as a `meta::index_list` object.
+// ///
+// template <tuple_like tuple>
+// consteval auto indices() noexcept {
+//   return meta::indices_less_than<tuple_size<tuple>()>();
+// }
+
+// /// Return all types of the tuple-like type
+// /// `tuple` as a `meta::type_list` object.
+// ///
+// template <tuple_like tuple>
+// consteval auto types() noexcept {
+//   return fold(indices<tuple>(), []<std::size_t... indices> {
+//     return meta::type_list<meta::as_type<tuple_element<indices, tuple>()>...>{};
+//   });
+// }
+
+// /// Check whether the type `functor` is a callable that can be
+// /// invoked with all elements of the tuple-like type `tuple`.
+// ///
+// template <typename functor, typename tuple>
+// concept tuple_functor_for =
+//     tuple_like<tuple> && all_of(indices<tuple>(), []<std::size_t index> {
+//       return std::invocable<functor,
+//                             decltype(at<index>(std::declval<tuple>()))>;
+//     });
+
+// /// Check whether the type `functor` is a callable that can be invoked
+// /// with all elements of the tuple-like type `tuple` as function arguments
+// /// and their respective indices as template argument.
+// ///
+// template <typename functor, typename tuple, std::size_t index>
+// concept tuple_index_functor_for_index = requires(functor f, tuple t) {
+//   f.template operator()<index>(at<index>(t));
+// };
+// //
+// template <typename functor, typename tuple>
+// concept tuple_index_functor_for =
+//     tuple_like<tuple> && all_of(indices<tuple>(), []<std::size_t index> {
+//       return tuple_index_functor_for_index<functor, tuple, index>;
+//     });
+
+// /// Invoke the given functor for each element of the tuple.
+// /// The functor is simply a unary callable that can be
+// /// invoked with all element types of the given tuple.
+// ///
+// /// Example Lambda Expression:
+// /// for_each(tuple, [](auto value){ ... });
+// ///
+// template <tuple_like tuple, tuple_functor_for<tuple> functor>
+// constexpr void for_each(tuple&& t, functor&& f) {
+//   for_each(indices<tuple>(),
+//            [&]<std::size_t index> { f(at<index>(std::forward<tuple>(t))); });
+// }
+
+// /// Invoke the given functor for each element of the tuple.
+// /// The invocation will instantiate the `operator()`
+// /// with the element's index as template argument.
+// ///
+// /// Example Lambda Expression:
+// /// for_each(tuple, []<std::size_t index>(auto value){ ... });
+// ///
+// template <tuple_like tuple, tuple_index_functor_for<tuple> functor>
+// constexpr void for_each(tuple&& t, functor&& f) {
+//   for_each(indices<tuple>(), [&]<std::size_t index> {
+//     f.template operator()<index>(at<index>(std::forward<tuple>(t)));
+//   });
+// }
+
+// /// Invoke the callable object `f` with the elements of `t` as arguments.
+// /// Similar to `std::apply` but for all tuple-like types.
+// ///
+// template <typename functor, tuple_like tuple>
+// constexpr decltype(auto) tuple_invoke(functor&& f, tuple&& t) {
+//   return fold(indices<tuple>(), [&]<std::size_t... is> {
+//     return std::invoke(std::forward<functor>(f),
+//                        at<is>(std::forward<tuple>(t))...);
+//   });
+// }
+
+// namespace detail {
+
+// template <typename tuple_type, std::size_t index>
+// concept tuple_get_access = requires(tuple_type value) {
+//   {
+//     get<index>(value)
+//   }
+//   -> std::convertible_to<typename std::tuple_element<index, tuple_type>::type>;
+// };
+
+// template <typename tuple_type, std::size_t index>
+// concept xstd_tuple_value_access = requires(tuple_type tuple) {
+//   {
+//     value<index>(tuple)
+//   } -> std::convertible_to<typename tuple_type::template type<index>>;
+//   // Only ask for specific type.
+//   // For an array, you would not want to provide a type list.
+// };
+
+// }  // namespace detail
+
+// /// Checks whether a given type fulfills the requirements of a generic tuple.
+// ///
+// // template <typename tuple_type>
+// // concept generic_tuple = all_of(
+// //     meta::index_list_from_iota<std::tuple_size<tuple_type>::value>(),
+// //     []<std::size_t index> { return detail::tuple_get_access<tuple_type, index>; });
+
+// ///
+// ///
+// template <typename T>
+// concept generic_reducible_tuple = generic_tuple<std::remove_cvref_t<T>>;
+
+// ///
+// ///
 // template <typename tuple_type>
-// concept generic_tuple = all_of(
-//     meta::index_list_from_iota<std::tuple_size<tuple_type>::value>(),
-//     []<size_t index> { return detail::tuple_get_access<tuple_type, index>; });
+// concept generic_xstd_tuple =
+//     all_of(meta::index_list_from_iota<tuple_type::size()>(),  //
+//            []<std::size_t index> {
+//              return detail::xstd_tuple_value_access<tuple_type, index>;
+//            });
 
-///
-///
-template <typename T>
-concept generic_reducible_tuple = generic_tuple<std::remove_cvref_t<T>>;
+// ///
+// ///
+// template <typename tuple_type>
+// concept generic_reducible_xstd_tuple =
+//     generic_xstd_tuple<std::decay_t<tuple_type>>;
 
-///
-///
-template <typename tuple_type>
-concept generic_xstd_tuple =
-    all_of(meta::index_list_from_iota<tuple_type::size()>(),  //
-           []<size_t index> {
-             return detail::xstd_tuple_value_access<tuple_type, index>;
-           });
-
-///
-///
-template <typename tuple_type>
-concept generic_reducible_xstd_tuple =
-    generic_xstd_tuple<std::decay_t<tuple_type>>;
-
-///
-///
-// A tuple type is not a tag type and as such should be given as template argument.
-template <generic_tuple tuple_type, size_t... indices>
-consteval auto type_list_from(meta::index_list<indices...>) {
-  return meta::type_list<
-      typename std::tuple_element<indices, tuple_type>::type...>{};
-}
-//
-template <generic_tuple tuple_type>
-consteval auto type_list_from() {
-  return type_list_from<tuple_type>(
-      meta::index_list_from_iota<std::tuple_size<tuple_type>::value>());
-}
-
-///
-///
-// template <size_t... indices>
-// constexpr auto for_each(generic_reducible_tuple auto&& tuple,
-//                         auto&& f,
-//                         meta::index_list<indices...>) {
-//   (f(get<indices>(std::forward<decltype(tuple)>(tuple))), ...);
+// ///
+// ///
+// // A tuple type is not a tag type and as such should be given as template argument.
+// template <generic_tuple tuple_type, std::size_t... indices>
+// consteval auto type_list_from(meta::index_list<indices...>) {
+//   return meta::type_list<
+//       typename std::tuple_element<indices, tuple_type>::type...>{};
 // }
 // //
-// constexpr auto for_each(generic_reducible_tuple auto&& tuple, auto&& f) {
-//   using tuple_type = std::decay_t<decltype(tuple)>;
-//   for_each(std::forward<decltype(tuple)>(tuple), std::forward<decltype(f)>(f),
-//            meta::index_list_from_iota<std::tuple_size<tuple_type>::value>());
+// template <generic_tuple tuple_type>
+// consteval auto type_list_from() {
+//   return type_list_from<tuple_type>(
+//       meta::index_list_from_iota<std::tuple_size<tuple_type>::value>());
 // }
 
-///
-///
-template <typename type>
-concept tuple_representable =
-    tuple_like<typename type::tuple_representation> &&
-    std::derived_from<type, typename type::tuple_representation>;
+// ///
+// ///
+// // template <std::size_t... indices>
+// // constexpr auto for_each(generic_reducible_tuple auto&& tuple,
+// //                         auto&& f,
+// //                         meta::index_list<indices...>) {
+// //   (f(get<indices>(std::forward<decltype(tuple)>(tuple))), ...);
+// // }
+// // //
+// // constexpr auto for_each(generic_reducible_tuple auto&& tuple, auto&& f) {
+// //   using tuple_type = std::decay_t<decltype(tuple)>;
+// //   for_each(std::forward<decltype(tuple)>(tuple), std::forward<decltype(f)>(f),
+// //            meta::index_list_from_iota<std::tuple_size<tuple_type>::value>());
+// // }
 
-template <typename type>
-concept tuple_castable = requires(type value) {
-  { value.as_tuple() } -> tuple_like;
-};
-template <tuple_castable type>
-using tuple_cast_type =
-    std::remove_cvref_t<decltype(std::declval<type>().as_tuple())>;
-///
-template <tuple_like tuple>
-struct tuple_likeness : tuple {
-  using tuple_representation = tuple;
-  using tuple::tuple;
-};
+// ///
+// ///
+// template <typename type>
+// concept tuple_representable =
+//     tuple_like<typename type::tuple_representation> &&
+//     std::derived_from<type, typename type::tuple_representation>;
 
-template <size_t index>
-constexpr decltype(auto) get(tuple_castable auto&& t) noexcept(
-    noexcept(get<index>(std::forward<decltype(t)>(t).as_tuple()))) {
-  return get<index>(std::forward<decltype(t)>(t).as_tuple());
-}
-
-}  // namespace xstd
-
-export namespace std {
-
-template <xstd::tuple_castable wrapper>
-struct tuple_size<wrapper> {
-  static constexpr size_t value =
-      std::tuple_size<xstd::tuple_cast_type<wrapper>>::value;
-};
-template <size_t index, xstd::tuple_castable wrapper>
-struct tuple_element<index, wrapper> {
-  using type =
-      typename std::tuple_element<index, xstd::tuple_cast_type<wrapper>>::type;
-};
-
-template <xstd::tuple_representable wrapper>
-struct tuple_size<wrapper> {
-  static constexpr size_t value =
-      std::tuple_size<typename wrapper::tuple_representation>::value;
-};
-template <size_t index, xstd::tuple_representable wrapper>
-struct tuple_element<index, wrapper> {
-  using type =
-      typename std::tuple_element<index,
-                                  typename wrapper::tuple_representation>::type;
-};
-
-// template <xstd::meta::name_list_instance names,
-//           xstd::generic_tuple tuple_type>
-// struct tuple_size<xstd::named_tuple<names, tuple_type>> {
-//   static constexpr size_t value = std::tuple_size<tuple_type>::value;
+// template <typename type>
+// concept tuple_castable = requires(type value) {
+//   { value.as_tuple() } -> tuple_like;
+// };
+// template <tuple_castable type>
+// using tuple_cast_type =
+//     std::remove_cvref_t<decltype(std::declval<type>().as_tuple())>;
+// ///
+// template <tuple_like tuple>
+// struct tuple_likeness : tuple {
+//   using tuple_representation = tuple;
+//   using tuple::tuple;
 // };
 
-// template <size_t index,
-//           xstd::meta::name_list_instance names,
-//           xstd::generic_tuple tuple_type>
-// struct tuple_element<index, xstd::named_tuple<names, tuple_type>> {
-//   using type = typename std::tuple_element<index, tuple_type>::type;
+// template <std::size_t index>
+// constexpr decltype(auto) get(tuple_castable auto&& t) noexcept(
+//     noexcept(get<index>(std::forward<decltype(t)>(t).as_tuple()))) {
+//   return get<index>(std::forward<decltype(t)>(t).as_tuple());
+// }
+
+// }  // namespace xstd
+
+// export namespace std {
+
+// template <xstd::tuple_castable wrapper>
+// struct tuple_size<wrapper> {
+//   static constexpr std::size_t value =
+//       std::tuple_size<xstd::tuple_cast_type<wrapper>>::value;
+// };
+// template <std::size_t index, xstd::tuple_castable wrapper>
+// struct tuple_element<index, wrapper> {
+//   using type =
+//       typename std::tuple_element<index, xstd::tuple_cast_type<wrapper>>::type;
 // };
 
-}  // namespace std
+// template <xstd::tuple_representable wrapper>
+// struct tuple_size<wrapper> {
+//   static constexpr std::size_t value =
+//       std::tuple_size<typename wrapper::tuple_representation>::value;
+// };
+// template <std::size_t index, xstd::tuple_representable wrapper>
+// struct tuple_element<index, wrapper> {
+//   using type =
+//       typename std::tuple_element<index,
+//                                   typename wrapper::tuple_representation>::type;
+// };
 
-export namespace xstd {
+// // template <xstd::meta::name_list_instance names,
+// //           xstd::generic_tuple tuple_type>
+// // struct tuple_size<xstd::named_tuple<names, tuple_type>> {
+// //   static constexpr std::size_t value = std::tuple_size<tuple_type>::value;
+// // };
 
-template <typename... ts>
-struct basic_tuple_traits {
-  static consteval auto types() noexcept { return meta::type_list<ts...>{}; }
+// // template <std::size_t index,
+// //           xstd::meta::name_list_instance names,
+// //           xstd::generic_tuple tuple_type>
+// // struct tuple_element<index, xstd::named_tuple<names, tuple_type>> {
+// //   using type = typename std::tuple_element<index, tuple_type>::type;
+// // };
 
-  template <size_t index>
-  struct wrapper {
-    using type = meta::as_type<element<index>(types())>;
+// }  // namespace std
 
-    // constexpr auto&& value(this auto&& self) noexcept {
-    //   return std::forward_like<decltype(self)>(self.data);
-    // }
-
-    constexpr decltype(auto) value() & noexcept {
-      return static_cast<type&>(data);
-    }
-    constexpr decltype(auto) value() const& noexcept {
-      return static_cast<const type&>(data);
-    }
-    constexpr decltype(auto) value() && noexcept {
-      return static_cast<type&&>(data);
-    }
-    constexpr decltype(auto) value() const&& noexcept {
-      return static_cast<const type&&>(data);
-    }
-
-    friend constexpr auto operator<=>(const wrapper&,
-                                      const wrapper&) noexcept = default;
-
-    type data;
-  };
-};
-
-template <meta::type_list_instance types,
-          meta::permutation_for<size(types{})> =
-              decltype(meta::permutation_identity<size(types{})>())>
-struct basic_tuple;
-
-template <typename... ts, size_t... indices>
-struct basic_tuple<meta::type_list<ts...>, meta::permutation<indices...>>
-    : basic_tuple_traits<ts...>::template wrapper<indices>... {
-  using traits_type = basic_tuple_traits<ts...>;
-
-  static consteval auto types() noexcept { return meta::type_list<ts...>{}; }
-
-  friend constexpr auto operator<=>(const basic_tuple&,
-                                    const basic_tuple&) noexcept = default;
-
-  static consteval auto permutation() noexcept {
-    return meta::permutation<indices...>{};
-  }
-
-  template <typename base>
-  constexpr auto forward_as() & noexcept -> base& {
-    return *this;
-  }
-  template <typename base>
-  constexpr auto forward_as() const& noexcept -> const base& {
-    return *this;
-  }
-  template <typename base>
-  constexpr auto forward_as() && noexcept -> base&& {
-    return std::move(*this);
-  }
-  template <typename base>
-  constexpr auto forward_as() const&& noexcept -> const base&& {
-    return std::move(*this);
-  }
-
-  template <size_t index>
-  constexpr auto&& value(this auto&& self) noexcept {
-    return std::forward<decltype(self)>(self)
-        .template forward_as<typename traits_type::template wrapper<index>>()
-        .value();
-  }
-
-  /// Returns the byte offset of an element given by index
-  /// inside the tuple structure.
-  ///
-  template <size_t index>
-  static consteval auto byte_offset() noexcept -> size_t {
-    if constexpr (index == 0)
-      return 0;
-    else
-      return aligned_offset(
-          byte_offset<index - 1>() +
-              sizeof(typename traits_type::template wrapper<index - 1>),
-          alignof(typename traits_type::template wrapper<index>));
-  }
-};
-
-template <typename... types>
-basic_tuple(types&&...) -> basic_tuple<std::unwrap_ref_decay_t<types>...>;
-
-template <typename... types>
-using regular_tuple = basic_tuple<meta::type_list<types...>>;
+// export namespace xstd {
 
 // template <typename... ts>
-// struct regular_tuple : basic_tuple_traits<ts...>::base {
+// struct basic_tuple_traits {
 //   static consteval auto types() noexcept { return meta::type_list<ts...>{}; }
+
+//   template <std::size_t index>
+//   struct wrapper {
+//     using type = meta::as_type<element<index>(types())>;
+
+//     // constexpr auto&& value(this auto&& self) noexcept {
+//     //   return std::forward_like<decltype(self)>(self.data);
+//     // }
+
+//     constexpr decltype(auto) value() & noexcept {
+//       return static_cast<type&>(data);
+//     }
+//     constexpr decltype(auto) value() const& noexcept {
+//       return static_cast<const type&>(data);
+//     }
+//     constexpr decltype(auto) value() && noexcept {
+//       return static_cast<type&&>(data);
+//     }
+//     constexpr decltype(auto) value() const&& noexcept {
+//       return static_cast<const type&&>(data);
+//     }
+
+//     friend constexpr auto operator<=>(const wrapper&,
+//                                       const wrapper&) noexcept = default;
+
+//     type data;
+//   };
 // };
 
-template <typename type>
-concept regular_tuple_instance =
-    matches<type, []<typename... types>(const regular_tuple<types...>&) {
-      return meta::as_signature<true>;
-    }>;
+// template <meta::type_list_instance types,
+//           meta::permutation_for<size(types{})> =
+//               decltype(meta::permutation_identity<size(types{})>())>
+// struct basic_tuple;
 
-template <size_t index>
-constexpr auto&& value(regular_tuple_instance auto&& t) noexcept {
-  return std::forward<decltype(t)>(t).template value<index>();
-}
+// template <typename... ts, std::size_t... indices>
+// struct basic_tuple<meta::type_list<ts...>, meta::permutation<indices...>>
+//     : basic_tuple_traits<ts...>::template wrapper<indices>... {
+//   using traits_type = basic_tuple_traits<ts...>;
 
-}  // namespace xstd
+//   static consteval auto types() noexcept { return meta::type_list<ts...>{}; }
+
+//   friend constexpr auto operator<=>(const basic_tuple&,
+//                                     const basic_tuple&) noexcept = default;
+
+//   static consteval auto permutation() noexcept {
+//     return meta::permutation<indices...>{};
+//   }
+
+//   template <typename base>
+//   constexpr auto forward_as() & noexcept -> base& {
+//     return *this;
+//   }
+//   template <typename base>
+//   constexpr auto forward_as() const& noexcept -> const base& {
+//     return *this;
+//   }
+//   template <typename base>
+//   constexpr auto forward_as() && noexcept -> base&& {
+//     return std::move(*this);
+//   }
+//   template <typename base>
+//   constexpr auto forward_as() const&& noexcept -> const base&& {
+//     return std::move(*this);
+//   }
+
+//   template <std::size_t index>
+//   constexpr auto&& value(this auto&& self) noexcept {
+//     return std::forward<decltype(self)>(self)
+//         .template forward_as<typename traits_type::template wrapper<index>>()
+//         .value();
+//   }
+
+//   /// Returns the byte offset of an element given by index
+//   /// inside the tuple structure.
+//   ///
+//   template <std::size_t index>
+//   static consteval auto byte_offset() noexcept -> std::size_t {
+//     if constexpr (index == 0)
+//       return 0;
+//     else
+//       return aligned_offset(
+//           byte_offset<index - 1>() +
+//               sizeof(typename traits_type::template wrapper<index - 1>),
+//           alignof(typename traits_type::template wrapper<index>));
+//   }
+// };
+
+// template <typename... types>
+// basic_tuple(types&&...) -> basic_tuple<std::unwrap_ref_decay_t<types>...>;
+
+// template <typename... types>
+// using regular_tuple = basic_tuple<meta::type_list<types...>>;
+
+// // template <typename... ts>
+// // struct regular_tuple : basic_tuple_traits<ts...>::base {
+// //   static consteval auto types() noexcept { return meta::type_list<ts...>{}; }
+// // };
+
+// template <typename type>
+// concept regular_tuple_instance =
+//     matches<type, []<typename... types>(const regular_tuple<types...>&) {
+//       return meta::as_signature<true>;
+//     }>;
+
+// template <std::size_t index>
+// constexpr auto&& value(regular_tuple_instance auto&& t) noexcept {
+//   return std::forward<decltype(t)>(t).template value<index>();
+// }
+
+// }  // namespace xstd

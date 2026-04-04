@@ -25,6 +25,7 @@ export import :meta;
 
 export import :string;
 
+export import :tuple;
 export import :match;
 
 export import :async_invoke;
@@ -32,7 +33,6 @@ export import :string_from_file;
 export import :lines_view;
 export import :scoped_chdir;
 
-// export import :tuple;
 // export import :named_tuple;
 
 // export import :task_queue;

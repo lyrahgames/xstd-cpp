@@ -2,7 +2,7 @@
 #
 # lib{xstd}: xstd/{hxx ixx txx}{** -version} xstd/hxx{version}
 # lib{xstd}: xstd/mxx{**}
-lib{xstd}: xstd/hxx{version} xstd/mxx{** -*tuple -task*}
+lib{xstd}: xstd/hxx{version} xstd/mxx{** -named_tuple -task*}
 lib{xstd}: bin.binless = true
 
 # Version Header
