@@ -1,6 +1,6 @@
 : 1
 name: libxstd
-version: 0.1.0-a.0.z
+version: 0.1.0
 type: lib,binless
 language: c++
 project: xstd-cpp

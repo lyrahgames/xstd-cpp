@@ -1,6 +1,6 @@
 : 1
 name: libxstd-tests
-version: 0.1.0-a.0.z
+version: 0.1.0
 type: exe
 language: c++
 project: xstd-cpp
