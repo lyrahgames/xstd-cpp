@@ -15,73 +15,53 @@
 // You should have received a copy of the GNU General Public License
 // along with `xstd`. If not, see <https://www.gnu.org/licenses/>.
 //
+module;
+#include <version>
+
+// Check for the support of deleted functions with messages
+// and define a custom macro to provide a fallback method.
+// We are inside a module. So, no heavy macro naming required.
+#if __cpp_deleted_function >= 202403L
+#define DELETE(msg) delete (msg)
+#else
+#define DELETE(msg) delete
+#endif
+
 export module xstd:meta.breakpoint;
 
 namespace xstd::meta {
 
 /// Forces a compile-time error that allows
-/// to inspect a single explicitly given type.
-///
-export template <typename type>
-void breakpoint() = delete (
-    "Compilation stopped as requested. "
-    "Remove to successfully compile.");
-
-/// Forces a compile-time error that allows
-/// to inspect multiple explicitly given types.
+/// to inspect multiple template arguments at once.
 ///
 export template <typename... types>
-  requires(sizeof...(types) > 1)
-void breakpoint() = delete (
+void breakpoint() = DELETE(
     "Compilation stopped as requested. "
     "Remove to successfully compile.");
 
 /// Forces a compile-time error that allows to inspect
-/// the decayed type of a single given argument.
-/// No abbreviated function template is used to improve error message.
+/// the decayed type of multiple arguments at once.
+/// The abbreviated function template syntax is not used
+/// to improve the resulting error message from the compiler.
 ///
-export template <typename type>
-void breakpoint(type) = delete (
+export template <typename... types>
+void breakpoint(types...) = DELETE(
     "Compilation stopped as requested. "
     "Remove to successfully compile.");
 
-/// Forces a compile-time error that allows to inspect
-/// the decayed type of multiple given arguments.
-/// No abbreviated function template is used to improve error message.
+/// Generates a compiler deprecation warning that allows
+/// to inspect multiple template arguments at once.
 ///
 export template <typename... types>
-  requires(sizeof...(types) > 1)
-void breakpoint(types...) = delete (
-    "Compilation stopped as requested. "
-    "Remove to successfully compile.");
-
-/// Generates a compiler warning that allows
-/// to inspect a single explicitly given type.
-///
-export template <typename type>
 [[deprecated("Warning generated as requested.")]]
 void watchpoint() {}
 
-/// Generates a compiler warning that allows
-/// to inspect multiple explicitly given types.
+/// Generates a compiler deprecation warning that allows to
+/// inspect the decayed types of multiple arguments at once.
+/// The abbreviated function template syntax is not used
+/// to improve the resulting error message from the compiler.
 ///
 export template <typename... types>
-  requires(sizeof...(types) > 1)
-[[deprecated("Warning generated as requested.")]]
-void watchpoint() {}
-
-/// Generates a compiler warning that allows to inspect
-/// the decayed type of a single given argument.
-///
-export template <typename type>
-[[deprecated("Warning generated as requested.")]]
-void watchpoint(type) {}
-
-/// Generates a compiler warning that allows to inspect
-/// the decayed type of multiple given arguments.
-///
-export template <typename... types>
-  requires(sizeof...(types) > 1)
 [[deprecated("Warning generated as requested.")]]
 void watchpoint(types...) {}
 

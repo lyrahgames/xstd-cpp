@@ -1,3 +1,4 @@
+# for x: cxx{*}
 for x: cxx{* -breakpoint}
 {
   n = $name($x)

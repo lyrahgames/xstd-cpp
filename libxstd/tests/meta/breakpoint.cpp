@@ -23,9 +23,8 @@ using xstd::meta::watchpoint;
 
 int main() {
   auto time = std::chrono::steady_clock::now();
-  // breakpoint(time);
-  // breakpoint<decltype(time)>();
-
+  breakpoint(time);
+  breakpoint<decltype(time)>();
   watchpoint(time);
   watchpoint<decltype(time)>();
 }
