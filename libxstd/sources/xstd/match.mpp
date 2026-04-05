@@ -32,7 +32,7 @@ struct match : functors... {
   friend constexpr auto operator|(auto&& variant, match matcher) noexcept {
     using result_type =
         decltype(std::visit(matcher, std::forward<decltype(variant)>(variant)));
-    if constexpr (not_void<result_type>)
+    if constexpr (not std::same_as<void, result_type>)
       return std::visit(matcher, std::forward<decltype(variant)>(variant));
     else
       std::visit(matcher, std::forward<decltype(variant)>(variant));
