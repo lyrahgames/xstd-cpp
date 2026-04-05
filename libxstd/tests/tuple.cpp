@@ -358,21 +358,31 @@ int main() {
   using xstd::meta::as_value;
   {
     std::tuple<int, float> tuple{1, 2};
+    static_assert(xstd::tuple_size<decltype(tuple)>() == 2);
+    static_assert(xstd::types<decltype(tuple)>() ==
+                  xstd::meta::type_list<int, float>{});
     auto& [x, y] = tuple;
     // xstd::meta::breakpoint<decltype(get<0>(tuple))>();
     assert(get<0>(tuple) == 1);
     assert(get<1>(tuple) == 2);
+    assert(xstd::at<0>(tuple) == 1);
+    assert(xstd::at<1>(tuple) == 2);
     assert(x == 1);
     assert(y == 2);
     ++x, y = 1;
     assert(get<0>(tuple) == 2);
     assert(get<1>(tuple) == 1);
+    ++xstd::at<0>(tuple);
+    assert(xstd::at<0>(tuple) == 3);
+    assert(xstd::at<1>(tuple) == 1);
   }
   {
     member_gettable_tuple tuple{1, 2};
     auto& [x, y] = tuple;
     assert(tuple.get<0>() == 1);
     assert(tuple.get<1>() == 2);
+    assert(xstd::at<0>(tuple) == 1);
+    assert(xstd::at<1>(tuple) == 2);
     assert(x == 1);
     assert(y == 2);
     ++x, y = 1;
@@ -380,12 +390,17 @@ int main() {
     assert(tuple.y == 1);
     assert(tuple.get<0>() == 2);
     assert(tuple.get<1>() == 1);
+    ++xstd::at<0>(tuple);
+    assert(xstd::at<0>(tuple) == 3);
+    assert(xstd::at<1>(tuple) == 1);
   }
   {
     adl_space::adl_gettable_tuple tuple{1, 2};
     auto& [x, y] = tuple;
     assert(get<0>(tuple) == 1);
     assert(get<1>(tuple) == 2);
+    assert(xstd::at<0>(tuple) == 1);
+    assert(xstd::at<1>(tuple) == 2);
     assert(x == 1);
     assert(y == 2);
     ++x, y = 1;
@@ -393,6 +408,9 @@ int main() {
     assert(tuple.b == 1);
     assert(get<0>(tuple) == 2);
     assert(get<1>(tuple) == 1);
+    ++xstd::at<0>(tuple);
+    assert(xstd::at<0>(tuple) == 3);
+    assert(xstd::at<1>(tuple) == 1);
   }
   {
     constexpr adl_space::member_and_adl_gettable_tuple tuple{1};
@@ -404,6 +422,8 @@ int main() {
     auto& [x, y] = tuple;
     assert(tuple.get<0>() == 3);
     assert(tuple.get<1>() == 4);
+    assert(xstd::at<0>(tuple) == 3);
+    assert(xstd::at<1>(tuple) == 4);
     assert(x == 3);
     assert(y == 4);
   }

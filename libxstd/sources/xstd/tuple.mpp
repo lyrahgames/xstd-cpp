@@ -158,194 +158,112 @@ concept strict_tuple_like =
     all_of(meta::iota<std::tuple_size_v<std::remove_reference_t<type>>>(),
            []<auto index> { return strict_std_tuple_element_at<type, index>; });
 
+/// Get access to a generic tuple's element at `index`.
+/// This function is a convenient wrapper for `std::get`.
+///
+export template <std::size_t index>
+constexpr decltype(auto) at(tuple_like auto&& tuple) noexcept(noexcept(
+    ::xstd::detail::tuple::at<index>(std::forward<decltype(tuple)>(tuple)))) {
+  return ::xstd::detail::tuple::at<index>(std::forward<decltype(tuple)>(tuple));
+}
+
+/// Convenience wrapper to access `std::tuple_size` for tuple-like types.
+///
+export template <tuple_like tuple>
+consteval auto tuple_size() noexcept -> std::size_t {
+  return std::tuple_size_v<std::remove_reference_t<tuple>>;
+}
+
+/// Convenience wrapper to access `std::tuple_element` for tuple-like types.
+///
+export template <std::size_t index, tuple_like tuple>
+consteval auto tuple_element() noexcept {
+  return meta::as_value<
+      std::tuple_element_t<index, std::remove_reference_t<tuple>>>;
+}
+
+/// Return all indices of the tuple-like type `tuple` as `meta::index_list`.
+///
+export template <tuple_like tuple>
+consteval auto indices() noexcept {
+  return meta::iota<tuple_size<tuple>()>();
+}
+
+/// Return all types of the tuple-like type `tuple` as `meta::type_list`.
+///
+export template <tuple_like tuple>
+consteval auto types() noexcept {
+  return fold(indices<tuple>(), []<std::size_t... indices> {
+    return meta::type_list<meta::as_type<tuple_element<indices, tuple>()>...>{};
+  });
+}
+
+/// Checks whether the type `functor` is a callable that can be
+/// invoked with all elements of the tuple-like type `tuple`.
+///
+template <typename functor, typename tuple>
+concept tuple_functor_for =
+    tuple_like<tuple> && all_of(indices<tuple>(), []<std::size_t index> {
+      return std::invocable<functor,
+                            decltype(at<index>(std::declval<tuple>()))>;
+    });
+
+/// Check whether the type `functor` is a callable that can be invoked
+/// with all elements of the tuple-like type `tuple` as function arguments
+/// and their respective indices as template argument.
+///
+template <typename functor, typename tuple, std::size_t index>
+concept tuple_index_functor_for_index = requires(functor f, tuple t) {
+  f.template operator()<index>(at<index>(t));
+};
+//
+template <typename functor, typename tuple>
+concept tuple_index_functor_for =
+    tuple_like<tuple> && all_of(indices<tuple>(), []<std::size_t index> {
+      return tuple_index_functor_for_index<functor, tuple, index>;
+    });
+
+/// Invoke the given functor for each element of the tuple.
+/// The functor is a unary callable that can be
+/// invoked with all element types of the given tuple.
+///
+/// Example Lambda Expression:
+/// for_each(tuple, [](auto value){ ... });
+///
+template <tuple_like tuple, tuple_functor_for<tuple> functor>
+constexpr void for_each(tuple&& t, functor&& f) {
+  for_each(indices<tuple>(),
+           [&]<std::size_t index> { f(at<index>(std::forward<tuple>(t))); });
+}
+
+/// Invoke the given functor for each element of the tuple.
+/// The invocation will instantiate the `operator()`
+/// with the element's index as template argument.
+///
+/// Example Lambda Expression:
+/// for_each(tuple, []<std::size_t index>(auto value){ ... });
+///
+template <tuple_like tuple, tuple_index_functor_for<tuple> functor>
+constexpr void for_each(tuple&& t, functor&& f) {
+  for_each(indices<tuple>(), [&]<std::size_t index> {
+    f.template operator()<index>(at<index>(std::forward<tuple>(t)));
+  });
+}
+
+/// Invoke the callable object `f` with the elements of `t` as arguments.
+/// Similar to `std::apply` but for all tuple-like types.
+///
+template <typename functor, tuple_like tuple>
+constexpr decltype(auto) tuple_invoke(functor&& f, tuple&& t) {
+  return fold(indices<tuple>(), [&]<std::size_t... is> {
+    return std::invoke(std::forward<functor>(f),
+                       at<is>(std::forward<tuple>(t))...);
+  });
+}
+
 }  // namespace xstd
 
 // export namespace xstd {
-
-// /// Convenience wrapper function to access
-// /// `std::tuple_size` for generic tuples.
-// ///
-// template <tuple_like tuple>
-// consteval auto tuple_size() noexcept {
-//   return std::tuple_size<std::remove_cvref_t<tuple>>::value;
-// }
-
-// /// Convenience wrapper function to access
-// /// `std::tuple_element` for generic tuples.
-// ///
-// template <std::size_t index, tuple_like tuple>
-// consteval auto tuple_element() noexcept {
-//   return meta::as_value<
-//       typename std::tuple_element<index, std::remove_cvref_t<tuple>>::type>;
-// }
-
-// /// Get access to a generic tuple's element at index `index`.
-// /// This function is a convenient wrapper for `std::get`.
-// ///
-// template <std::size_t index>
-// constexpr auto&& at(tuple_like auto&& t) noexcept(
-//     noexcept(get<index>(std::forward<decltype(t)>(t)))) {
-//   return get<index>(std::forward<decltype(t)>(t));
-// }
-
-// /// Return all indices of the tuple-like type
-// /// `tuple` as a `meta::index_list` object.
-// ///
-// template <tuple_like tuple>
-// consteval auto indices() noexcept {
-//   return meta::indices_less_than<tuple_size<tuple>()>();
-// }
-
-// /// Return all types of the tuple-like type
-// /// `tuple` as a `meta::type_list` object.
-// ///
-// template <tuple_like tuple>
-// consteval auto types() noexcept {
-//   return fold(indices<tuple>(), []<std::size_t... indices> {
-//     return meta::type_list<meta::as_type<tuple_element<indices, tuple>()>...>{};
-//   });
-// }
-
-// /// Check whether the type `functor` is a callable that can be
-// /// invoked with all elements of the tuple-like type `tuple`.
-// ///
-// template <typename functor, typename tuple>
-// concept tuple_functor_for =
-//     tuple_like<tuple> && all_of(indices<tuple>(), []<std::size_t index> {
-//       return std::invocable<functor,
-//                             decltype(at<index>(std::declval<tuple>()))>;
-//     });
-
-// /// Check whether the type `functor` is a callable that can be invoked
-// /// with all elements of the tuple-like type `tuple` as function arguments
-// /// and their respective indices as template argument.
-// ///
-// template <typename functor, typename tuple, std::size_t index>
-// concept tuple_index_functor_for_index = requires(functor f, tuple t) {
-//   f.template operator()<index>(at<index>(t));
-// };
-// //
-// template <typename functor, typename tuple>
-// concept tuple_index_functor_for =
-//     tuple_like<tuple> && all_of(indices<tuple>(), []<std::size_t index> {
-//       return tuple_index_functor_for_index<functor, tuple, index>;
-//     });
-
-// /// Invoke the given functor for each element of the tuple.
-// /// The functor is simply a unary callable that can be
-// /// invoked with all element types of the given tuple.
-// ///
-// /// Example Lambda Expression:
-// /// for_each(tuple, [](auto value){ ... });
-// ///
-// template <tuple_like tuple, tuple_functor_for<tuple> functor>
-// constexpr void for_each(tuple&& t, functor&& f) {
-//   for_each(indices<tuple>(),
-//            [&]<std::size_t index> { f(at<index>(std::forward<tuple>(t))); });
-// }
-
-// /// Invoke the given functor for each element of the tuple.
-// /// The invocation will instantiate the `operator()`
-// /// with the element's index as template argument.
-// ///
-// /// Example Lambda Expression:
-// /// for_each(tuple, []<std::size_t index>(auto value){ ... });
-// ///
-// template <tuple_like tuple, tuple_index_functor_for<tuple> functor>
-// constexpr void for_each(tuple&& t, functor&& f) {
-//   for_each(indices<tuple>(), [&]<std::size_t index> {
-//     f.template operator()<index>(at<index>(std::forward<tuple>(t)));
-//   });
-// }
-
-// /// Invoke the callable object `f` with the elements of `t` as arguments.
-// /// Similar to `std::apply` but for all tuple-like types.
-// ///
-// template <typename functor, tuple_like tuple>
-// constexpr decltype(auto) tuple_invoke(functor&& f, tuple&& t) {
-//   return fold(indices<tuple>(), [&]<std::size_t... is> {
-//     return std::invoke(std::forward<functor>(f),
-//                        at<is>(std::forward<tuple>(t))...);
-//   });
-// }
-
-// namespace detail {
-
-// template <typename tuple_type, std::size_t index>
-// concept tuple_get_access = requires(tuple_type value) {
-//   {
-//     get<index>(value)
-//   }
-//   -> std::convertible_to<typename std::tuple_element<index, tuple_type>::type>;
-// };
-
-// template <typename tuple_type, std::size_t index>
-// concept xstd_tuple_value_access = requires(tuple_type tuple) {
-//   {
-//     value<index>(tuple)
-//   } -> std::convertible_to<typename tuple_type::template type<index>>;
-//   // Only ask for specific type.
-//   // For an array, you would not want to provide a type list.
-// };
-
-// }  // namespace detail
-
-// /// Checks whether a given type fulfills the requirements of a generic tuple.
-// ///
-// // template <typename tuple_type>
-// // concept generic_tuple = all_of(
-// //     meta::index_list_from_iota<std::tuple_size<tuple_type>::value>(),
-// //     []<std::size_t index> { return detail::tuple_get_access<tuple_type, index>; });
-
-// ///
-// ///
-// template <typename T>
-// concept generic_reducible_tuple = generic_tuple<std::remove_cvref_t<T>>;
-
-// ///
-// ///
-// template <typename tuple_type>
-// concept generic_xstd_tuple =
-//     all_of(meta::index_list_from_iota<tuple_type::size()>(),  //
-//            []<std::size_t index> {
-//              return detail::xstd_tuple_value_access<tuple_type, index>;
-//            });
-
-// ///
-// ///
-// template <typename tuple_type>
-// concept generic_reducible_xstd_tuple =
-//     generic_xstd_tuple<std::decay_t<tuple_type>>;
-
-// ///
-// ///
-// // A tuple type is not a tag type and as such should be given as template argument.
-// template <generic_tuple tuple_type, std::size_t... indices>
-// consteval auto type_list_from(meta::index_list<indices...>) {
-//   return meta::type_list<
-//       typename std::tuple_element<indices, tuple_type>::type...>{};
-// }
-// //
-// template <generic_tuple tuple_type>
-// consteval auto type_list_from() {
-//   return type_list_from<tuple_type>(
-//       meta::index_list_from_iota<std::tuple_size<tuple_type>::value>());
-// }
-
-// ///
-// ///
-// // template <std::size_t... indices>
-// // constexpr auto for_each(generic_reducible_tuple auto&& tuple,
-// //                         auto&& f,
-// //                         meta::index_list<indices...>) {
-// //   (f(get<indices>(std::forward<decltype(tuple)>(tuple))), ...);
-// // }
-// // //
-// // constexpr auto for_each(generic_reducible_tuple auto&& tuple, auto&& f) {
-// //   using tuple_type = std::decay_t<decltype(tuple)>;
-// //   for_each(std::forward<decltype(tuple)>(tuple), std::forward<decltype(f)>(f),
-// //            meta::index_list_from_iota<std::tuple_size<tuple_type>::value>());
-// // }
 
 // ///
 // ///
@@ -400,19 +318,6 @@ concept strict_tuple_like =
 //       typename std::tuple_element<index,
 //                                   typename wrapper::tuple_representation>::type;
 // };
-
-// // template <xstd::meta::name_list_instance names,
-// //           xstd::generic_tuple tuple_type>
-// // struct tuple_size<xstd::named_tuple<names, tuple_type>> {
-// //   static constexpr std::size_t value = std::tuple_size<tuple_type>::value;
-// // };
-
-// // template <std::size_t index,
-// //           xstd::meta::name_list_instance names,
-// //           xstd::generic_tuple tuple_type>
-// // struct tuple_element<index, xstd::named_tuple<names, tuple_type>> {
-// //   using type = typename std::tuple_element<index, tuple_type>::type;
-// // };
 
 // }  // namespace std
 
